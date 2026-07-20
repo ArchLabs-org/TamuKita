@@ -1,5 +1,11 @@
 export { HeroSection } from "./hero-section";
+export { BrandLogosSection } from "./brand-logos-section";
 export { FeaturesSection } from "./features-section";
-export { PricingSection } from "./pricing-section";
+export { TemplatePreviewSection } from "./template-preview-section";
+export { HowItWorksSection } from "./how-it-works-section";
+export { DashboardPreviewSection } from "./dashboard-preview-section";
+export { WhyDigitalSection } from "./why-digital-section";
 export { TestimonialsSection } from "./testimonials-section";
+export { FaqSection } from "./faq-section";
 export { CtaSection } from "./cta-section";
+export { PricingSection } from "./pricing-section";
