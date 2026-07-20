@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
-import { RegisterForm } from "@/features/authentication/register-form";
+import { ForgotPasswordForm } from "@/features/authentication/forgot-password-form";
 import { constructMetadata } from "@/lib/helpers/metadata";
 
 export const metadata: Metadata = constructMetadata({
-  title: "Daftar Gratis",
+  title: "Lupa Password",
   noIndex: true,
-  path: "/register",
+  path: "/forgot-password",
 });
 
-export default function RegisterPage() {
+export default function ForgotPasswordPage() {
   return (
     <div>
       <div className="mb-8">
         <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-          Buat akun gratis
+          Lupa password Anda?
         </h1>
         <p className="mt-2 font-sans text-sm text-muted-foreground">
-          Mulai buat website pernikahan kalian hari ini
+          Masukkan email yang terdaftar untuk menerima tautan pemulihan kata sandi.
         </p>
       </div>
-      <RegisterForm />
+      <ForgotPasswordForm />
     </div>
   );
 }

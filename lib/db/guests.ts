@@ -9,21 +9,25 @@ type GuestUpdate = Database["public"]["Tables"]["guests"]["Update"];
  * Get all guests for a wedding, ordered alphabetically.
  */
 export async function getGuestsByWeddingId(weddingId: string): Promise<Guest[]> {
-  const supabase = await createClient();
-  if (!supabase) return [];
+  try {
+    const supabase = await createClient();
+    if (!supabase) return [];
 
-  const { data, error } = await supabase
-    .from("guests")
-    .select("*")
-    .eq("wedding_id", weddingId)
-    .order("name", { ascending: true });
+    const { data, error } = await supabase
+      .from("guests")
+      .select("*")
+      .eq("wedding_id", weddingId)
+      .order("name", { ascending: true });
 
-  if (error) {
-    console.error("[db/guests] getGuestsByWeddingId error:", error.message);
+    if (error) {
+      console.warn("[db/guests] getGuestsByWeddingId fallback:", error.message);
+      return [];
+    }
+
+    return data ?? [];
+  } catch {
     return [];
   }
-
-  return data ?? [];
 }
 
 /**
@@ -33,11 +37,7 @@ export async function getGuestById(id: string): Promise<Guest | null> {
   const supabase = await createClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("guests")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await supabase.from("guests").select("*").eq("id", id).single();
 
   if (error) {
     console.error("[db/guests] getGuestById error:", error.message);
@@ -89,11 +89,7 @@ export async function createGuest(guest: GuestInsert): Promise<Guest | null> {
   const supabase = await createClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("guests")
-    .insert(guest)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("guests").insert(guest).select().single();
 
   if (error) {
     console.error("[db/guests] createGuest error:", error.message);
@@ -110,10 +106,7 @@ export async function createGuestsBulk(guests: GuestInsert[]): Promise<Guest[]> 
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const { data, error } = await supabase
-    .from("guests")
-    .insert(guests)
-    .select();
+  const { data, error } = await supabase.from("guests").insert(guests).select();
 
   if (error) {
     console.error("[db/guests] createGuestsBulk error:", error.message);
@@ -126,10 +119,7 @@ export async function createGuestsBulk(guests: GuestInsert[]): Promise<Guest[]> 
 /**
  * Update a guest record.
  */
-export async function updateGuest(
-  id: string,
-  updates: GuestUpdate,
-): Promise<Guest | null> {
+export async function updateGuest(id: string, updates: GuestUpdate): Promise<Guest | null> {
   const supabase = await createClient();
   if (!supabase) return null;
 

@@ -75,10 +75,7 @@ function IPhoneMockup() {
         <div className="absolute left-1/2 top-2 z-20 h-5 w-24 -translate-x-1/2 rounded-full bg-[hsl(22,10%,10%)]" />
 
         {/* Screen content — invitation preview */}
-        <div
-          className="absolute inset-0"
-          style={{ background: "hsl(36,40%,96%)" }}
-        >
+        <div className="absolute inset-0" style={{ background: "hsl(36,40%,96%)" }}>
           {/* Top ornament */}
           <div className="absolute inset-x-0 top-0 flex justify-center pt-10">
             <svg viewBox="0 0 120 60" className="w-28 opacity-20" fill="none">
@@ -112,9 +109,17 @@ function IPhoneMockup() {
               Arya
             </h3>
             <div className="my-1 flex items-center gap-2">
-              <div className="h-px w-8 bg-current opacity-20" style={{ color: "hsl(43,78%,49%)" }} />
-              <span className="text-[8px]" style={{ color: "hsl(43,78%,49%)" }}>✦</span>
-              <div className="h-px w-8 bg-current opacity-20" style={{ color: "hsl(43,78%,49%)" }} />
+              <div
+                className="h-px w-8 bg-current opacity-20"
+                style={{ color: "hsl(43,78%,49%)" }}
+              />
+              <span className="text-[8px]" style={{ color: "hsl(43,78%,49%)" }}>
+                ✦
+              </span>
+              <div
+                className="h-px w-8 bg-current opacity-20"
+                style={{ color: "hsl(43,78%,49%)" }}
+              />
             </div>
             <h3
               className="font-display text-[22px] font-light leading-tight"
@@ -128,10 +133,7 @@ function IPhoneMockup() {
             >
               Sabtu, 12 April 2026
             </p>
-            <p
-              className="font-sans text-[7px] opacity-40"
-              style={{ color: "hsl(20,14%,25%)" }}
-            >
+            <p className="font-sans text-[7px] opacity-40" style={{ color: "hsl(20,14%,25%)" }}>
               The Ritz-Carlton, Jakarta
             </p>
 
@@ -174,10 +176,7 @@ export function HeroSection() {
   const phoneOpacity = useTransform(scrollY, [0, 400], [1, 0.6]);
 
   return (
-    <section
-      className="relative min-h-[100svh] overflow-hidden"
-      aria-label="Hero"
-    >
+    <section className="relative min-h-[100svh] overflow-hidden" aria-label="Hero">
       {/* Paper texture background */}
       <div
         aria-hidden="true"
@@ -207,10 +206,8 @@ export function HeroSection() {
 
       {/* Main layout — two column on desktop */}
       <div className="relative mx-auto flex min-h-[100svh] max-w-7xl flex-col items-center px-4 pb-16 pt-28 sm:px-6 lg:flex-row lg:gap-16 lg:px-8 lg:pb-24 lg:pt-32">
-
         {/* Left column — copy */}
         <div className="flex flex-1 flex-col items-center text-center lg:items-start lg:text-left">
-
           {/* Eyebrow */}
           <motion.div
             custom={0}
@@ -219,11 +216,7 @@ export function HeroSection() {
             animate="animate"
             className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-xs font-medium text-brand-700"
           >
-            <span
-              className="flex h-1.5 w-1.5 rounded-full bg-brand-500"
-              aria-hidden="true"
-            />
-            
+            <span className="flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
           </motion.div>
 
           {/* Headline */}
@@ -236,10 +229,9 @@ export function HeroSection() {
           >
             Ceritakan
             <br />
-            <em className="font-light not-italic text-gradient">Kisah Cinta</em>
+            <em className="text-gradient font-light not-italic">Kisah Cinta</em>
             <br />
-            Kalian dengan{" "}
-            <span className="font-semibold">Indah</span>
+            Kalian dengan <span className="font-semibold">Indah</span>
           </motion.h1>
 
           {/* Sub */}
@@ -250,8 +242,8 @@ export function HeroSection() {
             animate="animate"
             className="mt-5 max-w-md font-sans text-base leading-relaxed text-muted-foreground md:text-lg"
           >
-            Buat website pernikahan yang terasa personal — lengkap dengan manajemen tamu,
-            RSVP digital, dan galeri cerita kalian berdua.
+            Buat website pernikahan yang terasa personal — lengkap dengan manajemen tamu, RSVP
+            digital, dan galeri cerita kalian berdua.
           </motion.p>
 
           {/* CTA row */}
@@ -284,7 +276,7 @@ export function HeroSection() {
               className="group h-12 gap-2 rounded-full px-5 text-sm text-muted-foreground hover:text-foreground"
             >
               <Link href={ROUTES.demo}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm group-hover:border-brand-300 transition-colors">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors group-hover:border-brand-300">
                   <Play size={10} className="ml-0.5 fill-current" aria-hidden="true" />
                 </span>
                 Lihat Demo
@@ -323,8 +315,8 @@ export function HeroSection() {
                 </div>
               ))}
             </div>
-            <p className="font-sans text-xs text-muted-foreground">
-              Dipercaya pasangan dari seluruh Indonesia
+            <p className="font-sans text-xs font-medium text-muted-foreground">
+              Dirancang khusus untuk momen istimewa pernikahan Anda
             </p>
           </motion.div>
         </div>
@@ -345,7 +337,9 @@ export function HeroSection() {
             className="absolute -right-4 top-12 z-20 w-44 rounded-xl border border-border bg-card px-3 py-2.5 shadow-soft sm:-right-10 lg:-right-14"
           >
             <div className="flex items-center gap-2">
-              <span className="text-base" aria-hidden="true">🎉</span>
+              <span className="text-base" aria-hidden="true">
+                🎉
+              </span>
               <div>
                 <p className="text-[10px] font-semibold text-foreground">RSVP Diterima</p>
                 <p className="text-[9px] text-muted-foreground">Reza + 1 orang hadir</p>
@@ -360,7 +354,9 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 1.1, ease: [0.16, 1, 0.3, 1] }}
             className="absolute -left-4 bottom-20 z-20 w-40 rounded-xl border border-border bg-card px-3 py-2.5 shadow-soft sm:-left-10 lg:-left-14"
           >
-            <p className="text-[9px] font-medium uppercase tracking-widest text-muted-foreground">Konfirmasi</p>
+            <p className="text-[9px] font-medium uppercase tracking-widest text-muted-foreground">
+              Konfirmasi
+            </p>
             <div className="mt-1 flex items-end gap-1">
               <span className="font-display text-2xl font-semibold text-foreground">247</span>
               <span className="mb-0.5 text-[9px] text-muted-foreground">dari 300 tamu</span>

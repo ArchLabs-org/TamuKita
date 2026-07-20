@@ -175,4 +175,26 @@
     height: 1px;
     background: linear-gradient(to right, transparent, hsl(var(--border)), transparent);
   }
+
+  /* Vignette & Soft Circle Blur Photo Effects for Couple Portraits */
+  .vignette-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  .vignette-effect::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .circle-blur-blend {
+    mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1) 45%, rgba(0, 0, 0, 0) 96%);
+    -webkit-mask-image: radial-gradient(
+      circle at center,
+      rgba(0, 0, 0, 1) 45%,
+      rgba(0, 0, 0, 0) 96%
+    );
+  }
 }

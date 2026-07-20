@@ -5,22 +5,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerSchema, type RegisterInput } from "@/lib/utils/validators";
 import { ROUTES } from "@/constants/routes";
+import { createClient } from "@/lib/supabase/client";
 
 export function RegisterForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState(false);
+  const [emailSent, setEmailSent] = React.useState(false);
 
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -28,43 +30,58 @@ export function RegisterForm() {
 
   async function onSubmit(data: RegisterInput) {
     setServerError(null);
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
 
-      if (!supabase) {
-        setServerError("Layanan autentikasi belum dikonfigurasi.");
-        return;
-      }
+    const supabase = createClient();
 
-      const { error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: { full_name: data.fullName },
-          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-        },
-      });
+    if (!supabase) {
+      setServerError("Layanan autentikasi belum dikonfigurasi.");
+      return;
+    }
 
-      if (error) {
-        setServerError(error.message);
-        return;
-      }
+    const { error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: { full_name: data.fullName },
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
 
-      setSuccess(true);
-    } catch {
-      setServerError("Terjadi kesalahan. Silakan coba lagi.");
+    if (error) {
+      setServerError(error.message);
+      return;
+    }
+
+    // Supabase may auto-confirm depending on project settings.
+    // Check session — if confirmed immediately, go to dashboard.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      router.push(ROUTES.dashboard);
+      router.refresh();
+    } else {
+      // Email confirmation required
+      setEmailSent(true);
     }
   }
 
-  if (success) {
+  if (emailSent) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8 text-center">
-        <div className="text-3xl mb-3" aria-hidden="true">✉️</div>
-        <h3 className="text-lg font-semibold text-foreground">Cek Email Anda</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Kami telah mengirim link konfirmasi ke email Anda. Silakan cek inbox (dan folder spam).
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 text-center shadow-sm">
+        <CheckCircle2 size={36} className="mx-auto text-emerald-600" />
+        <h3 className="mt-3 font-display text-lg font-semibold text-emerald-900">
+          Verifikasi Email
+        </h3>
+        <p className="mt-2 font-sans text-sm leading-relaxed text-emerald-700">
+          Kami telah mengirimkan tautan konfirmasi ke{" "}
+          <span className="font-medium">{getValues("email")}</span>. Silakan cek inbox atau folder
+          spam Anda.
         </p>
+        <Button variant="outline" size="sm" asChild className="mt-6 rounded-full px-6 text-xs">
+          <Link href={ROUTES.login}>Kembali ke Login</Link>
+        </Button>
       </div>
     );
   }
@@ -167,7 +184,7 @@ export function RegisterForm() {
         type="submit"
         variant="brand"
         size="lg"
-        className="w-full"
+        className="w-full rounded-xl"
         disabled={isSubmitting}
         aria-busy={isSubmitting}
       >
@@ -190,8 +207,14 @@ export function RegisterForm() {
 
       <p className="text-center text-xs text-muted-foreground">
         Dengan mendaftar, Anda menyetujui{" "}
-        <Link href="/terms" className="hover:underline">Syarat Layanan</Link> dan{" "}
-        <Link href="/privacy" className="hover:underline">Kebijakan Privasi</Link> kami.
+        <Link href="/terms" className="hover:underline">
+          Syarat Layanan
+        </Link>{" "}
+        dan{" "}
+        <Link href="/privacy" className="hover:underline">
+          Kebijakan Privasi
+        </Link>{" "}
+        kami.
       </p>
     </form>
   );

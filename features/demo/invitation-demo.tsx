@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
-  Music2,
+  Volume2,
   VolumeX,
   MapPin,
   Calendar,
@@ -13,19 +13,960 @@ import {
   Heart,
   ChevronDown,
   Copy,
-  ExternalLink,
   Gift,
   Check,
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
-import type { DemoTheme } from "./data";
+import { demoThemes, type DemoTheme } from "./data";
+import { getTemplateMusic } from "@/config/template-music";
 
-/* ─────────────────────────────────────────
-   Countdown hook
-───────────────────────────────────────── */
-function useCountdown(target: string) {
-  const calc = () => {
+/* ════════════════════════════════════════════════════════════════════════════
+   1. TEMPLATE-SPECIFIC AUDIO PLAYER (Strict Unique Audio Source per Theme)
+════════════════════════════════════════════════════════════════════════════ */
+function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: boolean }) {
+  const musicConfig = getTemplateMusic(theme.id);
+  const [playing, setPlaying] = React.useState(false);
+  const [audioExists, setAudioExists] = React.useState<boolean | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  // Check if unique audio file exists for this template
+  React.useEffect(() => {
+    let isMounted = true;
+
+    // Destroy previous audio instance completely before loading the next template's audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+    setPlaying(false);
+    setAudioExists(null);
+
+    fetch(musicConfig.file, { method: "HEAD" })
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.ok) {
+          setAudioExists(true);
+        } else {
+          setAudioExists(false);
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `[TamuKita] Audio file not found for template "${theme.id}": ${musicConfig.file}`,
+            );
+          }
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setAudioExists(false);
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `[TamuKita] Audio file not found for template "${theme.id}": ${musicConfig.file}`,
+          );
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current.load();
+        audioRef.current = null;
+      }
+    };
+  }, [theme.id, musicConfig.file]);
+
+  // Handle auto-play when invitation cover is opened
+  React.useEffect(
+    () => {
+      if (isOpened && audioExists === true && !playing) {
+        const audio = new Audio(musicConfig.file);
+        audio.loop = true;
+        audioRef.current = audio;
+        audio
+          .play()
+          .then(() => setPlaying(true))
+          .catch(() => setPlaying(false));
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOpened, audioExists, musicConfig.file],
+  );
+
+  const toggleMusic = () => {
+    if (!audioExists) return;
+
+    if (playing && audioRef.current) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(musicConfig.file);
+        audioRef.current.loop = true;
+      }
+      audioRef.current
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => setPlaying(false));
+    }
+  };
+
+  const spectrumBars = [0.4, 0.8, 0.5, 0.95, 0.6, 0.85, 0.45, 0.9, 0.65, 0.5];
+
+  return (
+    <div className="fixed bottom-6 right-5 z-50 flex items-center gap-2.5">
+      {/* Animated Sound Wave Notes floating up when playing */}
+      <AnimatePresence>
+        {playing && (
+          <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2">
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, y: 0, scale: 0.6, x: (i - 1) * 12 }}
+                animate={{ opacity: [0, 0.8, 0], y: -40 - i * 15, scale: [0.6, 1, 0.8] }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  delay: i * 0.7,
+                  ease: "easeOut",
+                }}
+                className="absolute text-xs"
+                style={{ color: theme.palette.accent }}
+              >
+                {i % 2 === 0 ? "♫" : "♥"}
+              </motion.span>
+            ))}
+          </div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 1 }}
+        onClick={toggleMusic}
+        disabled={!audioExists}
+        whileHover={audioExists ? { scale: 1.06 } : {}}
+        whileTap={audioExists ? { scale: 0.94 } : {}}
+        className={`group relative flex items-center gap-3 rounded-full border px-4 py-2.5 shadow-xl backdrop-blur-xl transition-all ${
+          !audioExists ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+        }`}
+        style={{
+          background: `${theme.palette.card}f0`,
+          borderColor: theme.palette.border,
+          boxShadow: `0 8px 32px ${theme.palette.accent}20`,
+        }}
+        aria-label={playing ? "Hentikan Musik" : "Putar Musik"}
+      >
+        {/* Spinning Vinyl Record Disc */}
+        <motion.div
+          animate={playing ? { rotate: 360 } : { rotate: 0 }}
+          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          className="relative flex h-7 w-7 items-center justify-center rounded-full border border-black/10 bg-zinc-900 shadow-inner"
+        >
+          <div
+            className="h-2.5 w-2.5 rounded-full border border-white/20"
+            style={{ background: theme.palette.accent }}
+          />
+          <div className="absolute h-1 w-1 rounded-full bg-white/80" />
+        </motion.div>
+
+        {/* Live Audio Frequency Spectrum */}
+        <div className="flex items-end gap-[2px]" style={{ height: 16 }} aria-hidden="true">
+          {spectrumBars.map((h, i) => (
+            <motion.div
+              key={i}
+              className="w-[2.5px] rounded-full"
+              style={{ height: 16, originY: 1, background: theme.palette.accent }}
+              animate={
+                playing
+                  ? {
+                      scaleY: [0.2, h, 0.3, h * 1.1, 0.25],
+                      opacity: [0.5, 1, 0.6, 1, 0.5],
+                    }
+                  : { scaleY: 0.2, opacity: 0.3 }
+              }
+              transition={{
+                duration: 0.9 + i * 0.08,
+                repeat: Infinity,
+                repeatType: "reverse",
+                delay: i * 0.06,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+
+        <span
+          className="font-sans text-[10px] font-medium uppercase tracking-widest"
+          style={{ color: playing ? theme.palette.accent : theme.palette.textMuted }}
+        >
+          {audioExists === false
+            ? "Audio belum tersedia."
+            : playing
+              ? `${musicConfig.title} — ${musicConfig.artist}`
+              : "Putar Musik"}
+        </span>
+
+        {playing ? (
+          <Volume2 size={13} style={{ color: theme.palette.accent }} aria-hidden="true" />
+        ) : (
+          <VolumeX size={13} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
+        )}
+      </motion.button>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   2. FLOATING PETALS & FLOWER PARTICLES SYSTEM (Tailored per Theme)
+════════════════════════════════════════════════════════════════════════════ */
+interface PetalParticle {
+  id: number;
+  x: number;
+  delay: number;
+  duration: number;
+  size: number;
+  rotation: number;
+  drift: number;
+  type: "petal" | "leaf" | "sparkle" | "bubble" | "star";
+}
+
+function FloatingPetalsSystem({ theme }: { theme: DemoTheme }) {
+  const prefersReduced = useReducedMotion();
+
+  const particles: PetalParticle[] = React.useMemo(() => {
+    return Array.from({ length: 22 }, (_, i) => {
+      const seed = (i + 1) * 137.5;
+      const x = seed % 96;
+      const delay = seed % 12;
+      const duration = 14 + (seed % 14); // Ultra slow & romantic (14s - 28s)
+      const size = 8 + (seed % 16);
+      const rotation = seed % 360;
+      const drift = -40 + (seed % 80);
+
+      let type: PetalParticle["type"] = "petal";
+      if (theme.id === "sagara") type = "bubble";
+      else if (theme.id === "aster") type = "star";
+      else if (theme.id === "senja") type = "leaf";
+      else if (theme.id === "lumine" && i % 3 === 0) type = "sparkle";
+
+      return { id: i, x, delay, duration, size, rotation, drift, type };
+    });
+  }, [theme.id]);
+
+  if (prefersReduced) return null;
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden" aria-hidden="true">
+      {particles.map((p) => {
+        // Theme specific SVG Petal/Flower designs
+        let elementContent: React.ReactNode = null;
+
+        if (p.type === "bubble") {
+          elementContent = (
+            <div
+              className="h-full w-full rounded-full border border-amber-300/30"
+              style={{
+                background: `radial-gradient(circle at 30% 30%, ${theme.palette.accent}55, transparent)`,
+              }}
+            />
+          );
+        } else if (p.type === "star" || p.type === "sparkle") {
+          elementContent = (
+            <svg viewBox="0 0 24 24" className="h-full w-full" fill={theme.palette.accent}>
+              <path
+                d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z"
+                opacity="0.65"
+              />
+            </svg>
+          );
+        } else if (p.type === "leaf") {
+          elementContent = (
+            <svg viewBox="0 0 30 40" className="h-full w-full">
+              <path
+                d="M15 0 C30 15, 25 35, 15 40 C5 35, 0 15, 15 0 Z"
+                fill={theme.palette.accent}
+                opacity="0.35"
+              />
+              <path d="M15 5 L15 35" stroke={theme.palette.bg} strokeWidth="1" opacity="0.4" />
+            </svg>
+          );
+        } else {
+          // Default Romantic Sakura/Rose Petals
+          elementContent = (
+            <svg viewBox="0 0 30 30" className="h-full w-full">
+              <path
+                d="M15 2 C22 2, 28 8, 28 15 C28 22, 20 28, 15 28 C10 28, 2 22, 2 15 C2 8, 8 2, 15 2 Z"
+                fill={
+                  theme.id === "aurora"
+                    ? "#fda4af"
+                    : theme.id === "eterna"
+                      ? "#d4af37"
+                      : theme.palette.accent
+                }
+                opacity={theme.id === "aurora" ? "0.45" : "0.35"}
+              />
+            </svg>
+          );
+        }
+
+        return (
+          <motion.div
+            key={p.id}
+            className="absolute top-[-40px]"
+            style={{
+              left: `${p.x}%`,
+              width: p.size,
+              height: p.size * (p.type === "leaf" ? 1.3 : 1),
+              filter: p.type === "sparkle" ? "drop-shadow(0 0 4px rgba(255,255,255,0.8))" : "none",
+            }}
+            animate={{
+              y: ["0vh", "115vh"],
+              x: [0, p.drift, -p.drift / 2, p.drift],
+              rotate: [p.rotation, p.rotation + 360],
+              opacity: [0, 0.75, 0.6, 0],
+            }}
+            transition={{
+              duration: p.duration,
+              delay: p.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+              times: [0, 0.1, 0.85, 1],
+            }}
+          >
+            {elementContent}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   3. THEME SPECIFIC FLORAL & ORNAMENT SVGs
+════════════════════════════════════════════════════════════════════════════ */
+function FloralCornerOrnament({
+  theme,
+  position,
+}: {
+  theme: DemoTheme;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+}) {
+  const posClasses = {
+    "top-left": "top-0 left-0 -translate-x-1/4 -translate-y-1/4",
+    "top-right": "top-0 right-0 translate-x-1/4 -translate-y-1/4 scale-x-[-1]",
+    "bottom-left": "bottom-0 left-0 -translate-x-1/4 translate-y-1/4 scale-y-[-1]",
+    "bottom-right": "bottom-0 right-0 translate-x-1/4 translate-y-1/4 scale-[-1]",
+  };
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      className={`pointer-events-none absolute z-0 ${posClasses[position]}`}
+      animate={{ rotate: [0, 6, 0, -6, 0] }}
+      transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <svg width="220" height="220" viewBox="0 0 200 200" fill="none" className="opacity-20">
+        {theme.id === "eterna" ? (
+          /* Classical Gold Lotus & Arch */
+          <g stroke={theme.palette.accent} strokeWidth="1.2">
+            <circle cx="100" cy="100" r="80" strokeDasharray="4 4" />
+            <circle cx="100" cy="100" r="60" />
+            {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+              <path
+                key={deg}
+                d="M100 100 Q120 40 100 20 Q80 40 100 100"
+                transform={`rotate(${deg} 100 100)`}
+                fill={`${theme.palette.accent}15`}
+              />
+            ))}
+          </g>
+        ) : theme.id === "aster" ? (
+          /* Minimal Luxury Geometrics */
+          <g stroke={theme.palette.accent} strokeWidth="1">
+            <rect x="30" y="30" width="140" height="140" transform="rotate(45 100 100)" />
+            <circle cx="100" cy="100" r="45" />
+            <path d="M100 0 L100 200 M0 100 L200 100" opacity="0.5" />
+          </g>
+        ) : (
+          /* Floral Vines & Petal Mandalas */
+          <g fill={theme.palette.accent}>
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => (
+              <g key={d} transform={`rotate(${d} 100 100)`}>
+                <path d="M100 30 C110 50, 110 70, 100 90 C90 70, 90 50, 100 30 Z" opacity="0.6" />
+                <circle cx="100" cy="20" r="4" opacity="0.8" />
+              </g>
+            ))}
+            <circle cx="100" cy="100" r="12" opacity="0.4" />
+          </g>
+        )}
+      </svg>
+    </motion.div>
+  );
+}
+
+function SectionDivider({ theme }: { theme: DemoTheme }) {
+  return (
+    <div className="my-10 flex items-center justify-center gap-3">
+      <div className="h-px w-16 md:w-24" style={{ background: theme.palette.border }} />
+      <motion.div
+        animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+        className="flex items-center justify-center text-xs"
+        style={{ color: theme.palette.accent }}
+      >
+        ✦
+      </motion.div>
+      <div className="h-px w-16 md:w-24" style={{ background: theme.palette.border }} />
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   4. DISCRETE FLOATING TOP NAVIGATION TOOLBAR & FULLSCREEN TOGGLE
+════════════════════════════════════════════════════════════════════════════ */
+function DemoTopControlBar({ theme }: { theme: DemoTheme }) {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [showThemeMenu, setShowThemeMenu] = React.useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => setIsFullscreen(false))
+          .catch(() => {});
+      }
+    }
+  };
+
+  return (
+    <motion.header
+      initial={{ y: -60, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-x-0 top-3 z-50 mx-auto flex max-w-2xl items-center justify-between px-4"
+    >
+      <div
+        className="flex items-center gap-2 rounded-full border px-3.5 py-1.5 shadow-lg backdrop-blur-xl transition-all"
+        style={{
+          background: `${theme.palette.card}e6`,
+          borderColor: theme.palette.border,
+        }}
+      >
+        <Link
+          href="/demo"
+          className="flex items-center gap-1.5 font-sans text-xs font-medium transition-opacity hover:opacity-70"
+          style={{ color: theme.palette.textMuted }}
+        >
+          <ArrowLeft size={13} aria-hidden="true" />
+          <span className="hidden sm:inline">Galeri</span>
+        </Link>
+
+        <div className="h-3 w-px bg-border/50" aria-hidden="true" />
+
+        {/* Theme Selector Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowThemeMenu(!showThemeMenu)}
+            className="flex items-center gap-1.5 font-display text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: theme.palette.accent }}
+          >
+            <span
+              className="h-2 w-2 animate-pulse rounded-full"
+              style={{ background: theme.palette.accent }}
+            />
+            {theme.name}
+            <ChevronDown
+              size={12}
+              className={`transition-transform ${showThemeMenu ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          <AnimatePresence>
+            {showThemeMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                className="absolute left-0 mt-2 w-48 rounded-2xl border p-2 shadow-2xl backdrop-blur-2xl"
+                style={{
+                  background: theme.palette.card,
+                  borderColor: theme.palette.border,
+                }}
+              >
+                <div className="px-2 py-1 font-sans text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Pilih Tema Demo
+                </div>
+                {demoThemes.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/demo/${t.id}`}
+                    onClick={() => setShowThemeMenu(false)}
+                    className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 font-sans text-xs transition-colors ${
+                      t.id === theme.id ? "bg-muted font-medium" : "hover:bg-muted/60"
+                    }`}
+                    style={{ color: t.id === theme.id ? theme.palette.accent : theme.palette.text }}
+                  >
+                    <span>{t.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{t.tagline}</span>
+                  </Link>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div
+        className="flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-lg backdrop-blur-xl"
+        style={{
+          background: `${theme.palette.card}e6`,
+          borderColor: theme.palette.border,
+        }}
+      >
+        {/* Fullscreen Button */}
+        <button
+          onClick={toggleFullscreen}
+          className="flex items-center gap-1 rounded-full p-1 transition-opacity hover:opacity-70"
+          style={{ color: theme.palette.textMuted }}
+          title={isFullscreen ? "Keluar Fullscreen" : "Layar Penuh (Undangan Beneran)"}
+        >
+          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+
+        <Button
+          variant="brand"
+          size="sm"
+          asChild
+          className="h-7 rounded-full px-3.5 text-[11px] font-medium shadow-sm"
+        >
+          <Link href={ROUTES.register}>Gunakan Tema</Link>
+        </Button>
+      </div>
+    </motion.header>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   5. COVER ENVELOPE / OPENING SCREEN ("Buka Undangan Beneran")
+════════════════════════════════════════════════════════════════════════════ */
+function CoverEnvelopeSection({
+  theme,
+  isOpened,
+  guestName = "Tamu Undangan Spesial",
+  onOpen,
+}: {
+  theme: DemoTheme;
+  isOpened: boolean;
+  guestName?: string;
+  onOpen: () => void;
+}) {
+  return (
+    <motion.section
+      initial={false}
+      animate={
+        isOpened
+          ? { y: "-100vh", opacity: 0, pointerEvents: "none" }
+          : { y: "0vh", opacity: 1, pointerEvents: "auto" }
+      }
+      transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-0 z-40 flex flex-col items-center justify-center overflow-hidden px-6 text-center"
+      style={{ background: theme.palette.bg }}
+    >
+      <FloralCornerOrnament theme={theme} position="top-left" />
+      <FloralCornerOrnament theme={theme} position="top-right" />
+      <FloralCornerOrnament theme={theme} position="bottom-left" />
+      <FloralCornerOrnament theme={theme} position="bottom-right" />
+
+      {/* Center Decorative Emblem */}
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full border shadow-xl"
+        style={{
+          borderColor: theme.palette.border,
+          background: `${theme.palette.card}b0`,
+        }}
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-[-8px] rounded-full border border-dashed opacity-40"
+          style={{ borderColor: theme.palette.accent }}
+        />
+        <span className="font-display text-2xl font-light" style={{ color: theme.palette.accent }}>
+          {theme.couple.bride[0]} &amp; {theme.couple.groom[0]}
+        </span>
+      </motion.div>
+
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.8 }}
+        className="font-sans text-xs uppercase tracking-[0.3em]"
+        style={{ color: theme.palette.textMuted }}
+      >
+        Undangan Pernikahan
+      </motion.p>
+
+      <motion.h1
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        className="mt-3 font-display font-light leading-tight"
+        style={{
+          color: theme.palette.accent,
+          fontSize: "clamp(2.8rem, 8vw, 4.8rem)",
+        }}
+      >
+        {theme.couple.bride.split(" ")[0]} &amp; {theme.couple.groom.split(" ")[0]}
+      </motion.h1>
+
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.7 }}
+        transition={{ delay: 0.6 }}
+        className="mt-2 font-sans text-xs uppercase tracking-widest"
+        style={{ color: theme.palette.textMuted }}
+      >
+        {theme.event.reception.date}
+      </motion.p>
+
+      {/* Guest Card Box */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.75, duration: 0.8 }}
+        className="mt-8 rounded-2xl border px-8 py-5 shadow-lg backdrop-blur-md"
+        style={{
+          borderColor: theme.palette.border,
+          background: `${theme.palette.card}e6`,
+        }}
+      >
+        <p
+          className="font-sans text-[11px] uppercase tracking-wider"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Kepada Yth. Bapak/Ibu/Saudara/i
+        </p>
+        <p
+          className="mt-1 font-display text-lg font-medium"
+          style={{ color: theme.palette.accent }}
+        >
+          {guestName}
+        </p>
+      </motion.div>
+
+      {/* Buka Undangan Action Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9, duration: 0.8 }}
+        className="mt-8"
+      >
+        <Button
+          variant="brand"
+          size="lg"
+          onClick={onOpen}
+          className="group relative h-12 gap-2.5 rounded-full px-8 font-sans text-xs uppercase tracking-[0.2em] shadow-2xl transition-all duration-300 hover:scale-105"
+        >
+          <motion.span
+            animate={{ scale: [1, 1.25, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Heart size={14} className="fill-current" />
+          </motion.span>
+          Buka Undangan
+        </Button>
+      </motion.div>
+    </motion.section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   6. MAIN INVITATION CONTENT SECTIONS (Parallax & Slow Motion)
+════════════════════════════════════════════════════════════════════════════ */
+
+/* SECTION: Hero Cover */
+function HeroCoverSection({ theme }: { theme: DemoTheme }) {
+  const containerRef = React.useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const opacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+
+  return (
+    <section
+      ref={containerRef}
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
+      style={{ background: theme.palette.bg }}
+    >
+      <FloralCornerOrnament theme={theme} position="top-left" />
+      <FloralCornerOrnament theme={theme} position="top-right" />
+
+      <motion.div style={{ y, opacity }} className="relative z-20 flex flex-col items-center">
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1 }}
+          className="font-sans text-xs uppercase tracking-[0.3em]"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Walimatul Ursy
+        </motion.p>
+
+        <SectionDivider theme={theme} />
+
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          className="font-display font-light leading-none"
+          style={{
+            color: theme.palette.accent,
+            fontSize: "clamp(3.6rem, 11vw, 6.5rem)",
+          }}
+        >
+          {theme.couple.bride.split(" ")[0]}
+        </motion.h1>
+
+        <motion.div
+          initial={{ scaleX: 0, opacity: 0 }}
+          whileInView={{ scaleX: 1, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="my-3 flex items-center gap-4"
+        >
+          <div className="h-px w-12" style={{ background: theme.palette.border }} />
+          <span
+            className="font-display text-3xl font-light"
+            style={{ color: theme.palette.accent }}
+          >
+            &amp;
+          </span>
+          <div className="h-px w-12" style={{ background: theme.palette.border }} />
+        </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.2, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="font-display font-light leading-none"
+          style={{
+            color: theme.palette.accent,
+            fontSize: "clamp(3.6rem, 11vw, 6.5rem)",
+          }}
+        >
+          {theme.couple.groom.split(" ")[0]}
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 0.8 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4, duration: 1 }}
+          className="mt-6 font-sans text-xs uppercase tracking-[0.2em]"
+          style={{ color: theme.palette.textMuted }}
+        >
+          {theme.event.reception.date}
+        </motion.p>
+
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="mt-14 flex flex-col items-center gap-2 opacity-60"
+        >
+          <span
+            className="font-sans text-[10px] uppercase tracking-widest"
+            style={{ color: theme.palette.textMuted }}
+          >
+            Gulir ke Bawah
+          </span>
+          <ChevronDown size={16} style={{ color: theme.palette.accent }} />
+        </motion.div>
+      </motion.div>
+    </section>
+  );
+}
+
+/* SECTION: Quran Verse / Quote */
+function QuoteSection({ theme }: { theme: DemoTheme }) {
+  return (
+    <section
+      className="relative px-6 py-20 text-center"
+      style={{ background: theme.palette.bgSecondary }}
+    >
+      <div className="mx-auto max-w-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 1.2 }}
+          className="rounded-3xl border p-8 shadow-xl backdrop-blur-md md:p-12"
+          style={{
+            borderColor: theme.palette.border,
+            background: theme.palette.card,
+          }}
+        >
+          <p
+            className="font-serif text-xl leading-relaxed opacity-90 md:text-2xl"
+            style={{ color: theme.palette.accent }}
+          >
+            &ldquo;Dan di antara tanda-tanda (kebesaran)-Nya ialah Dia menciptakan pasangan-pasangan
+            untukmu dari jenismu sendiri, agar kamu cenderung dan merasa tenteram kepadanya.&rdquo;
+          </p>
+          <p
+            className="mt-4 font-sans text-xs uppercase tracking-[0.2em]"
+            style={{ color: theme.palette.textMuted }}
+          >
+            — QS. Ar-Rum: 21
+          </p>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* SECTION: Mempelai (Couple Profiles with Soft Vignette & Circle Blur Blend) */
+function CoupleSection({ theme }: { theme: DemoTheme }) {
+  return (
+    <section
+      className="relative overflow-hidden px-6 py-24"
+      style={{ background: theme.palette.bg }}
+    >
+      <div className="mx-auto max-w-4xl text-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="font-sans text-xs uppercase tracking-[0.25em]"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Pasangan Mempelai
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-2 font-display text-3xl font-light md:text-4xl"
+          style={{ color: theme.palette.accent }}
+        >
+          Mempelai Yang Bahagia
+        </motion.h2>
+
+        <SectionDivider theme={theme} />
+
+        <div className="mt-12 grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-16">
+          {/* Bride Card */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            {/* Soft Circle Blur & Vignette Frame */}
+            <div
+              className="relative mb-5 flex h-36 w-36 items-center justify-center rounded-full border p-1.5 shadow-2xl"
+              style={{ borderColor: theme.palette.accent }}
+            >
+              <div
+                className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                style={{ background: theme.palette.bgSecondary }}
+              >
+                <span
+                  className="font-display text-4xl font-light"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.bride[0]}
+                </span>
+              </div>
+            </div>
+
+            <h3
+              className="font-display text-2xl font-medium"
+              style={{ color: theme.palette.accent }}
+            >
+              {theme.couple.bride}
+            </h3>
+            <p
+              className="mt-2 font-sans text-xs leading-relaxed"
+              style={{ color: theme.palette.textMuted }}
+            >
+              {theme.couple.brideParents}
+            </p>
+          </motion.div>
+
+          {/* Groom Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            {/* Soft Circle Blur & Vignette Frame */}
+            <div
+              className="relative mb-5 flex h-36 w-36 items-center justify-center rounded-full border p-1.5 shadow-2xl"
+              style={{ borderColor: theme.palette.accent }}
+            >
+              <div
+                className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                style={{ background: theme.palette.bgSecondary }}
+              >
+                <span
+                  className="font-display text-4xl font-light"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.groom[0]}
+                </span>
+              </div>
+            </div>
+
+            <h3
+              className="font-display text-2xl font-medium"
+              style={{ color: theme.palette.accent }}
+            >
+              {theme.couple.groom}
+            </h3>
+            <p
+              className="mt-2 font-sans text-xs leading-relaxed"
+              style={{ color: theme.palette.textMuted }}
+            >
+              {theme.couple.groomParents}
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* SECTION: Event & Countdown with Google Maps Integration */
+function CountdownTimer({ target }: { target: string }) {
+  const calc = React.useCallback(() => {
     const diff = new Date(target).getTime() - Date.now();
     if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
     return {
@@ -34,472 +975,660 @@ function useCountdown(target: string) {
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     };
-  };
+  }, [target]);
+
   const [time, setTime] = React.useState(calc);
   React.useEffect(() => {
     const id = setInterval(() => setTime(calc()), 1000);
     return () => clearInterval(id);
-  });
-  return time;
-}
-
-/* ─────────────────────────────────────────
-   Floral ornament SVG (reusable)
-───────────────────────────────────────── */
-function FloralOrnament({
-  color,
-  size = 80,
-  petals = 8,
-  opacity = 0.15,
-  rotate = 0,
-}: {
-  color: string;
-  size?: number;
-  petals?: number;
-  opacity?: number;
-  rotate?: number;
-}) {
-  const angles = Array.from({ length: petals }, (_, i) => (360 / petals) * i);
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox={`0 0 ${size} ${size}`}
-      width={size}
-      height={size}
-      fill="none"
-      style={{ opacity, transform: `rotate(${rotate}deg)` }}
-    >
-      {angles.map((d) => (
-        <g key={d} transform={`rotate(${d} ${size / 2} ${size / 2})`}>
-          <ellipse
-            cx={size / 2}
-            cy={size * 0.18}
-            rx={size * 0.055}
-            ry={size * 0.18}
-            fill={color}
-          />
-        </g>
-      ))}
-      <circle cx={size / 2} cy={size / 2} r={size * 0.05} fill={color} />
-    </svg>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Section: Cover / Opening
-───────────────────────────────────────── */
-function CoverSection({ theme, onOpen }: { theme: DemoTheme; onOpen: () => void }) {
-  return (
-    <section
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden"
-      style={{ background: theme.palette.bg }}
-    >
-      {/* Corner ornaments */}
-      <div className="pointer-events-none absolute left-4 top-4">
-        <FloralOrnament color={theme.palette.accent} size={100} opacity={0.12} />
-      </div>
-      <div className="pointer-events-none absolute bottom-4 right-4 rotate-180">
-        <FloralOrnament color={theme.palette.accent} size={80} petals={6} opacity={0.1} />
-      </div>
-      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-        <FloralOrnament color={theme.palette.accent} size={60} petals={6} opacity={0.08} rotate={30} />
-      </div>
-
-      {/* Content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col items-center px-8 text-center"
-      >
-        <p
-          className="font-sans text-xs uppercase tracking-[0.28em]"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Together with their families
-        </p>
-
-        {/* Top line ornament */}
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px w-16" style={{ background: theme.palette.border }} />
-          <FloralOrnament color={theme.palette.accent} size={24} petals={8} opacity={0.6} />
-          <div className="h-px w-16" style={{ background: theme.palette.border }} />
-        </div>
-
-        <p
-          className="font-sans text-xs uppercase tracking-[0.2em]"
-          style={{ color: theme.palette.textMuted, opacity: 0.6 }}
-        >
-          The Wedding of
-        </p>
-
-        <h1
-          className="mt-3 font-display text-5xl font-light leading-tight md:text-6xl lg:text-7xl"
-          style={{ color: theme.palette.accent }}
-        >
-          {theme.couple.bride.split(" ")[0]}
-        </h1>
-        <div className="my-3 flex items-center gap-4">
-          <div className="h-px w-20" style={{ background: theme.palette.border }} />
-          <span
-            className="font-display text-2xl font-light"
-            style={{ color: theme.palette.accent, opacity: 0.7 }}
-          >
-            &amp;
-          </span>
-          <div className="h-px w-20" style={{ background: theme.palette.border }} />
-        </div>
-        <h1
-          className="font-display text-5xl font-light leading-tight md:text-6xl lg:text-7xl"
-          style={{ color: theme.palette.accent }}
-        >
-          {theme.couple.groom.split(" ")[0]}
-        </h1>
-
-        {/* Date */}
-        <div
-          className="mt-6 rounded-full border px-5 py-2 font-sans text-xs uppercase tracking-widest"
-          style={{ borderColor: theme.palette.border, color: theme.palette.textMuted }}
-        >
-          {theme.event.reception.date}
-        </div>
-
-        {/* Open button */}
-        <motion.button
-          onClick={onOpen}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
-          className="mt-10 flex flex-col items-center gap-2 font-sans text-xs uppercase tracking-widest transition-opacity hover:opacity-70"
-          style={{ color: theme.palette.accent }}
-        >
-          <span>Buka Undangan</span>
-          <ChevronDown size={16} className="animate-bounce" aria-hidden="true" />
-        </motion.button>
-      </motion.div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Section: Countdown
-───────────────────────────────────────── */
-function CountdownSection({ theme }: { theme: DemoTheme }) {
-  const { days, hours, minutes, seconds } = useCountdown(theme.event.countdown);
+  }, [calc]);
 
   const units = [
-    { label: "Hari", value: days },
-    { label: "Jam", value: hours },
-    { label: "Menit", value: minutes },
-    { label: "Detik", value: seconds },
+    { label: "Hari", val: time.days },
+    { label: "Jam", val: time.hours },
+    { label: "Menit", val: time.minutes },
+    { label: "Detik", val: time.seconds },
   ];
 
   return (
-    <section
-      className="py-20 px-4 text-center"
-      style={{ background: theme.palette.bgSecondary }}
-    >
-      <div className="mx-auto max-w-2xl">
-        <FloralOrnament color={theme.palette.accent} size={36} opacity={0.4} />
-        <p
-          className="mt-4 font-sans text-xs uppercase tracking-[0.2em]"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Menuju Hari Istimewa
-        </p>
-        <div className="mt-8 grid grid-cols-4 gap-3 sm:gap-6">
-          {units.map(({ label, value }) => (
-            <div key={label} className="flex flex-col items-center gap-1">
-              <div
-                className="flex h-16 w-full items-center justify-center rounded-xl border sm:h-20"
-                style={{
-                  background: theme.palette.card,
-                  borderColor: theme.palette.border,
-                }}
-              >
-                <span
-                  className="font-display text-3xl font-light tabular-nums sm:text-4xl"
-                  style={{ color: theme.palette.accent }}
-                >
-                  {String(value).padStart(2, "0")}
-                </span>
-              </div>
-              <span
-                className="font-sans text-[10px] uppercase tracking-widest"
-                style={{ color: theme.palette.textMuted }}
-              >
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Section: Bride & Groom
-───────────────────────────────────────── */
-function CoupleSection({ theme }: { theme: DemoTheme }) {
-  return (
-    <section className="py-20 px-4" style={{ background: theme.palette.bg }}>
-      <div className="mx-auto max-w-3xl text-center">
-        <p
-          className="font-sans text-xs uppercase tracking-[0.2em]"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Mempelai
-        </p>
-        <div className="mt-3 flex items-center justify-center gap-3">
-          <div className="h-px flex-1" style={{ background: theme.palette.border }} />
-          <FloralOrnament color={theme.palette.accent} size={28} opacity={0.5} />
-          <div className="h-px flex-1" style={{ background: theme.palette.border }} />
-        </div>
-
-        <div className="mt-10 grid gap-10 sm:grid-cols-2">
-          {/* Bride */}
-          <div className="flex flex-col items-center">
-            <div
-              className="flex h-24 w-24 items-center justify-center rounded-full border-2"
-              style={{
-                background: theme.palette.accentLight,
-                borderColor: theme.palette.border,
-              }}
-              aria-hidden="true"
-            >
-              <span className="font-display text-3xl" style={{ color: theme.palette.accent }}>
-                {theme.couple.bride[0]}
-              </span>
-            </div>
-            <h2
-              className="mt-4 font-display text-2xl font-light"
-              style={{ color: theme.palette.text }}
-            >
-              {theme.couple.bride}
-            </h2>
-            <p
-              className="mt-1 font-sans text-xs leading-relaxed"
-              style={{ color: theme.palette.textMuted }}
-            >
-              {theme.couple.brideParents}
-            </p>
-          </div>
-
-          {/* Groom */}
-          <div className="flex flex-col items-center">
-            <div
-              className="flex h-24 w-24 items-center justify-center rounded-full border-2"
-              style={{
-                background: theme.palette.accentLight,
-                borderColor: theme.palette.border,
-              }}
-              aria-hidden="true"
-            >
-              <span className="font-display text-3xl" style={{ color: theme.palette.accent }}>
-                {theme.couple.groom[0]}
-              </span>
-            </div>
-            <h2
-              className="mt-4 font-display text-2xl font-light"
-              style={{ color: theme.palette.text }}
-            >
-              {theme.couple.groom}
-            </h2>
-            <p
-              className="mt-1 font-sans text-xs leading-relaxed"
-              style={{ color: theme.palette.textMuted }}
-            >
-              {theme.couple.groomParents}
-            </p>
-          </div>
-        </div>
-
-        {/* Love story */}
+    <div className="flex justify-center gap-3 sm:gap-4">
+      {units.map((u, i) => (
         <div
-          className="mx-auto mt-10 max-w-lg rounded-2xl border p-6"
-          style={{ background: theme.palette.bgSecondary, borderColor: theme.palette.border }}
+          key={i}
+          className="flex min-w-[70px] flex-col items-center rounded-2xl border p-3 shadow-md backdrop-blur-md sm:min-w-[85px] sm:p-4"
+          style={{ borderColor: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.15)" }}
         >
-          <Heart
-            size={18}
-            className="mx-auto mb-3"
-            style={{ color: theme.palette.accent }}
-            aria-hidden="true"
-          />
-          <p
-            className="font-display text-sm leading-relaxed italic"
-            style={{ color: theme.palette.textMuted }}
-          >
-            &ldquo;{theme.couple.story}&rdquo;
-          </p>
+          <span className="font-display text-2xl font-medium sm:text-3xl">
+            {String(u.val).padStart(2, "0")}
+          </span>
+          <span className="font-sans text-[10px] uppercase tracking-wider opacity-80">
+            {u.label}
+          </span>
         </div>
-      </div>
-    </section>
+      ))}
+    </div>
   );
 }
 
-/* ─────────────────────────────────────────
-   Section: Event Details
-───────────────────────────────────────── */
 function EventSection({ theme }: { theme: DemoTheme }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_activeMap, setActiveMap] = React.useState<string | null>(null);
+
   return (
-    <section
-      className="py-20 px-4"
-      style={{ background: theme.palette.bgSecondary }}
-    >
-      <div className="mx-auto max-w-3xl">
-        <div className="text-center">
-          <p
-            className="font-sans text-xs uppercase tracking-[0.2em]"
-            style={{ color: theme.palette.textMuted }}
-          >
-            Rangkaian Acara
-          </p>
-          <h2
-            className="mt-2 font-display text-3xl font-light"
-            style={{ color: theme.palette.text }}
-          >
-            Hari Istimewa Kami
-          </h2>
+    <section className="relative px-6 py-24" style={{ background: theme.palette.bgSecondary }}>
+      <div className="mx-auto max-w-4xl text-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="font-sans text-xs uppercase tracking-[0.25em]"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Waktu &amp; Tempat
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-2 font-display text-3xl font-light md:text-4xl"
+          style={{ color: theme.palette.accent }}
+        >
+          Rangkaian Acara
+        </motion.h2>
+
+        <div className="mt-8">
+          <CountdownTimer target={theme.event.countdown} />
         </div>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {[
-            { label: "Akad Nikah", ev: theme.event.akad },
-            { label: "Resepsi", ev: theme.event.reception },
-          ].map(({ label, ev }) => (
-            <div
-              key={label}
-              className="overflow-hidden rounded-2xl border"
-              style={{ background: theme.palette.card, borderColor: theme.palette.border }}
+        <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-2">
+          {/* Akad */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            <Calendar size={24} style={{ color: theme.palette.accent }} />
+            <h3
+              className="mt-3 font-display text-xl font-medium"
+              style={{ color: theme.palette.accent }}
             >
-              {/* Card header */}
-              <div
-                className="px-6 py-3 text-center"
-                style={{ background: theme.palette.accentLight }}
-              >
-                <p
-                  className="font-sans text-xs font-semibold uppercase tracking-widest"
-                  style={{ color: theme.palette.accent }}
-                >
-                  {label}
-                </p>
-              </div>
+              Akad Nikah
+            </h3>
+            <p
+              className="mt-4 font-sans text-xs font-semibold"
+              style={{ color: theme.palette.text }}
+            >
+              {theme.event.akad.date}
+            </p>
+            <p
+              className="mt-1 flex items-center gap-1 font-sans text-xs"
+              style={{ color: theme.palette.textMuted }}
+            >
+              <Clock size={12} /> {theme.event.akad.time}
+            </p>
+            <p
+              className="mt-4 font-sans text-xs font-medium"
+              style={{ color: theme.palette.accent }}
+            >
+              {theme.event.akad.venue}
+            </p>
+            <p
+              className="mt-1 font-sans text-xs leading-relaxed"
+              style={{ color: theme.palette.textMuted }}
+            >
+              {theme.event.akad.address}
+            </p>
 
-              <div className="space-y-3 p-6">
-                <div className="flex items-start gap-3">
-                  <Calendar
-                    size={15}
-                    className="mt-0.5 flex-shrink-0"
-                    style={{ color: theme.palette.accent }}
-                    aria-hidden="true"
-                  />
-                  <p
-                    className="font-sans text-sm font-medium"
-                    style={{ color: theme.palette.text }}
-                  >
-                    {ev.date}
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock
-                    size={15}
-                    className="mt-0.5 flex-shrink-0"
-                    style={{ color: theme.palette.accent }}
-                    aria-hidden="true"
-                  />
-                  <p className="font-sans text-sm" style={{ color: theme.palette.textMuted }}>
-                    {ev.time}
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin
-                    size={15}
-                    className="mt-0.5 flex-shrink-0"
-                    style={{ color: theme.palette.accent }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p
-                      className="font-sans text-sm font-medium"
-                      style={{ color: theme.palette.text }}
-                    >
-                      {ev.venue}
-                    </p>
-                    <p
-                      className="mt-0.5 font-sans text-xs leading-relaxed"
-                      style={{ color: theme.palette.textMuted }}
-                    >
-                      {ev.address}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Maps button */}
-                <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(ev.venue)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 flex items-center gap-1.5 font-sans text-xs transition-opacity hover:opacity-70"
-                  style={{ color: theme.palette.accent }}
-                >
-                  <ExternalLink size={11} aria-hidden="true" />
-                  Buka di Google Maps
-                </a>
-              </div>
+            {/* Embedded Google Maps Box */}
+            <div
+              className="mt-5 w-full overflow-hidden rounded-2xl border shadow-inner"
+              style={{ borderColor: theme.palette.border, height: 160 }}
+            >
+              <iframe
+                title="Google Maps Lokasi Akad"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+              />
             </div>
-          ))}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium"
+              onClick={() =>
+                window.open(
+                  `https://maps.google.com/?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}`,
+                  "_blank",
+                )
+              }
+            >
+              <MapPin size={13} /> Buka Google Maps
+            </Button>
+          </motion.div>
+
+          {/* Resepsi */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1, delay: 0.15 }}
+            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            <Sparkles size={24} style={{ color: theme.palette.accent }} />
+            <h3
+              className="mt-3 font-display text-xl font-medium"
+              style={{ color: theme.palette.accent }}
+            >
+              Resepsi Pernikahan
+            </h3>
+            <p
+              className="mt-4 font-sans text-xs font-semibold"
+              style={{ color: theme.palette.text }}
+            >
+              {theme.event.reception.date}
+            </p>
+            <p
+              className="mt-1 flex items-center gap-1 font-sans text-xs"
+              style={{ color: theme.palette.textMuted }}
+            >
+              <Clock size={12} /> {theme.event.reception.time}
+            </p>
+            <p
+              className="mt-4 font-sans text-xs font-medium"
+              style={{ color: theme.palette.accent }}
+            >
+              {theme.event.reception.venue}
+            </p>
+            <p
+              className="mt-1 font-sans text-xs leading-relaxed"
+              style={{ color: theme.palette.textMuted }}
+            >
+              {theme.event.reception.address}
+            </p>
+
+            {/* Embedded Google Maps Box */}
+            <div
+              className="mt-5 w-full overflow-hidden rounded-2xl border shadow-inner"
+              style={{ borderColor: theme.palette.border, height: 160 }}
+            >
+              <iframe
+                title="Google Maps Lokasi Resepsi"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium"
+              onClick={() =>
+                window.open(
+                  `https://maps.google.com/?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}`,
+                  "_blank",
+                )
+              }
+            >
+              <MapPin size={13} /> Buka Google Maps
+            </Button>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─────────────────────────────────────────
-   Section: Gallery
-───────────────────────────────────────── */
-function GallerySection({ theme }: { theme: DemoTheme }) {
-  return (
-    <section className="py-20 px-4" style={{ background: theme.palette.bg }}>
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-10 text-center">
-          <p
-            className="font-sans text-xs uppercase tracking-[0.2em]"
-            style={{ color: theme.palette.textMuted }}
-          >
-            Galeri
-          </p>
-          <h2
-            className="mt-2 font-display text-3xl font-light"
-            style={{ color: theme.palette.text }}
-          >
-            Momen Berharga
-          </h2>
-        </div>
+/* SECTION: Digital Gift (Angpao) */
+function GiftSection({ theme }: { theme: DemoTheme }) {
+  const [copiedIndex, setCopiedIndex] = React.useState<number | null>(null);
 
-        {/* Masonry-style gallery grid */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {theme.gallery.map((grad, i) => (
+  const copyAccount = (account: string, index: number) => {
+    navigator.clipboard.writeText(account);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2500);
+  };
+
+  return (
+    <section className="relative px-6 py-24" style={{ background: theme.palette.bg }}>
+      <div className="mx-auto max-w-3xl text-center">
+        <Gift size={28} className="mx-auto" style={{ color: theme.palette.accent }} />
+        <h2
+          className="mt-3 font-display text-3xl font-light md:text-4xl"
+          style={{ color: theme.palette.accent }}
+        >
+          Tanda Kasih &amp; Angpao Digital
+        </h2>
+        <p
+          className="mt-3 font-sans text-xs leading-relaxed"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Doa restu Anda merupakan hadiah terindah bagi kami. Namun jika ingin memberi tanda kasih,
+          dapat mengirimkan melalui:
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {theme.gifts.map((g, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.07, duration: 0.5 }}
-              className={`overflow-hidden rounded-xl bg-gradient-to-br ${grad} ${
-                i === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square"
-              }`}
-              style={{
-                border: `1px solid ${theme.palette.border}`,
-              }}
+              transition={{ delay: i * 0.1, duration: 0.8 }}
+              className="flex flex-col items-center rounded-3xl border p-6 shadow-md"
+              style={{ borderColor: theme.palette.border, background: theme.palette.card }}
             >
-              {/* Overlay with "Photo" label */}
-              <div className="flex h-full items-center justify-center opacity-30">
-                <span
-                  className="font-display text-xs uppercase tracking-widest"
-                  style={{ color: theme.palette.accent }}
+              <span
+                className="font-sans text-xs font-bold uppercase tracking-widest"
+                style={{ color: theme.palette.accent }}
+              >
+                {g.bank}
+              </span>
+              <p
+                className="mt-3 font-mono text-base font-bold tracking-wider"
+                style={{ color: theme.palette.text }}
+              >
+                {g.account}
+              </p>
+              <p className="mt-1 font-sans text-xs" style={{ color: theme.palette.textMuted }}>
+                a.n. {g.name}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyAccount(g.account, i)}
+                className="mt-4 h-8 gap-1.5 rounded-full px-4 text-[11px]"
+              >
+                {copiedIndex === i ? (
+                  <>
+                    <Check size={12} className="text-emerald-500" /> Tersalin
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} /> Salin Rekening
+                  </>
+                )}
+              </Button>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* SECTION: RSVP & Live Wishes Wall with 1-by-1 Paginated Reader */
+function RsvpSection({ theme }: { theme: DemoTheme }) {
+  const [name, setName] = React.useState("");
+  const [status, setStatus] = React.useState("Hadir");
+  const [message, setMessage] = React.useState("");
+  const [readerIndex, setReaderIndex] = React.useState(0);
+  const [viewMode, setViewMode] = React.useState<"wall" | "single">("single");
+
+  const [wishes, setWishes] = React.useState([
+    {
+      name: "Budi & Keluarga",
+      status: "Hadir",
+      message: "Selamat untuk Sekar & Dimas! Semoga bahagia selamanya dunia akhirat.",
+    },
+    {
+      name: "Siti Rahma",
+      status: "Hadir",
+      message: "Barakallahu lakuma wa baraka alaikuma wa jama'a bainakuma fii khoir. Amin!",
+    },
+    {
+      name: "Andi Wijaya",
+      status: "Hadir",
+      message: "Selamat menempuh hidup baru sahabatku, doa terbaik untuk kalian berdua!",
+    },
+    {
+      name: "Ayu & Rendy",
+      status: "Hadir",
+      message: "Semoga menjadi keluarga yang sakinah, mawaddah, warahmah.",
+    },
+  ]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !message) return;
+    setWishes([{ name, status, message }, ...wishes]);
+    setName("");
+    setMessage("");
+  };
+
+  const nextWish = () => {
+    setReaderIndex((prev) => (prev + 1) % wishes.length);
+  };
+
+  const prevWish = () => {
+    setReaderIndex((prev) => (prev - 1 + wishes.length) % wishes.length);
+  };
+
+  return (
+    <section className="relative px-6 py-24" style={{ background: theme.palette.bgSecondary }}>
+      <div className="mx-auto max-w-4xl text-center">
+        <h2
+          className="font-display text-3xl font-light md:text-4xl"
+          style={{ color: theme.palette.accent }}
+        >
+          RSVP &amp; Ucapan Doa
+        </h2>
+        <p className="mt-2 font-sans text-xs" style={{ color: theme.palette.textMuted }}>
+          Konfirmasi kehadiran Anda dan berikan doa terbaik untuk mempelai.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
+          {/* Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-4 rounded-3xl border p-6 text-left shadow-xl"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            <div>
+              <label
+                className="font-sans text-xs font-medium"
+                style={{ color: theme.palette.text }}
+              >
+                Nama Lengkap
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Masukkan nama Anda"
+                className="mt-1.5 w-full rounded-2xl border px-4 py-2.5 text-xs outline-none transition-all focus:ring-2"
+                style={{ borderColor: theme.palette.border, background: theme.palette.bg }}
+              />
+            </div>
+
+            <div>
+              <label
+                className="font-sans text-xs font-medium"
+                style={{ color: theme.palette.text }}
+              >
+                Konfirmasi Kehadiran
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="mt-1.5 w-full rounded-2xl border px-4 py-2.5 text-xs outline-none"
+                style={{ borderColor: theme.palette.border, background: theme.palette.bg }}
+              >
+                <option value="Hadir">Saya Akan Hadir</option>
+                <option value="Tidak Hadir">Maaf, Tidak Bisa Hadir</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="font-sans text-xs font-medium"
+                style={{ color: theme.palette.text }}
+              >
+                Ucapan &amp; Doa
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Tuliskan pesan & doa untuk kedua mempelai..."
+                className="mt-1.5 w-full rounded-2xl border px-4 py-2.5 text-xs outline-none transition-all focus:ring-2"
+                style={{ borderColor: theme.palette.border, background: theme.palette.bg }}
+              />
+            </div>
+
+            <Button
+              variant="brand"
+              size="sm"
+              type="submit"
+              className="mt-2 h-10 rounded-full font-sans text-xs"
+            >
+              <Send size={13} className="mr-2" /> Kirim Ucapan
+            </Button>
+          </form>
+
+          {/* Wishes List Wall / 1-by-1 Reader */}
+          <div
+            className="flex flex-col gap-4 rounded-3xl border p-6 text-left shadow-xl"
+            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+          >
+            <div className="flex items-center justify-between">
+              <h4
+                className="font-sans text-xs font-bold uppercase tracking-wider opacity-80"
+                style={{ color: theme.palette.accent }}
+              >
+                Ucapan Doa ({wishes.length})
+              </h4>
+              <div
+                className="flex gap-1 rounded-full border p-1"
+                style={{ borderColor: theme.palette.border }}
+              >
+                <button
+                  onClick={() => setViewMode("single")}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                    viewMode === "single" ? "bg-muted font-bold" : "opacity-60"
+                  }`}
+                  style={{ color: theme.palette.text }}
                 >
-                  Foto {i + 1}
-                </span>
+                  Baca 1 Per 1
+                </button>
+                <button
+                  onClick={() => setViewMode("wall")}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                    viewMode === "wall" ? "bg-muted font-bold" : "opacity-60"
+                  }`}
+                  style={{ color: theme.palette.text }}
+                >
+                  Dinding
+                </button>
+              </div>
+            </div>
+
+            {viewMode === "single" ? (
+              <div
+                className="relative flex flex-1 flex-col justify-between rounded-2xl border p-5 shadow-sm"
+                style={{ borderColor: theme.palette.border, background: theme.palette.bgSecondary }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={readerIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="font-sans text-sm font-bold"
+                        style={{ color: theme.palette.accent }}
+                      >
+                        {wishes[readerIndex]?.name}
+                      </span>
+                      <span
+                        className="rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium"
+                        style={{
+                          background: `${theme.palette.accent}20`,
+                          color: theme.palette.accent,
+                        }}
+                      >
+                        {wishes[readerIndex]?.status}
+                      </span>
+                    </div>
+                    <p
+                      className="font-sans text-xs italic leading-relaxed opacity-90"
+                      style={{ color: theme.palette.text }}
+                    >
+                      &ldquo;{wishes[readerIndex]?.message}&rdquo;
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
+
+                <div
+                  className="mt-6 flex items-center justify-between border-t pt-3"
+                  style={{ borderColor: theme.palette.border }}
+                >
+                  <span className="font-sans text-[11px] text-muted-foreground">
+                    Pesan {readerIndex + 1} dari {wishes.length}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={prevWish}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-110"
+                      style={{ borderColor: theme.palette.border, color: theme.palette.text }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={nextWish}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border transition-all hover:scale-110"
+                      style={{ borderColor: theme.palette.border, color: theme.palette.text }}
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex max-h-[340px] flex-col gap-3 overflow-y-auto pr-1">
+                {wishes.map((w, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="rounded-2xl border p-4 shadow-sm"
+                    style={{
+                      borderColor: theme.palette.border,
+                      background: theme.palette.bgSecondary,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="font-sans text-xs font-bold"
+                        style={{ color: theme.palette.text }}
+                      >
+                        {w.name}
+                      </span>
+                      <span
+                        className="rounded-full px-2 py-0.5 font-sans text-[9px] font-medium"
+                        style={{
+                          background: `${theme.palette.accent}20`,
+                          color: theme.palette.accent,
+                        }}
+                      >
+                        {w.status}
+                      </span>
+                    </div>
+                    <p
+                      className="mt-2 font-sans text-xs leading-relaxed opacity-90"
+                      style={{ color: theme.palette.textMuted }}
+                    >
+                      &ldquo;{w.message}&rdquo;
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* SECTION: Love Story Timeline */
+function TimelineSection({ theme }: { theme: DemoTheme }) {
+  return (
+    <section className="relative px-6 py-24" style={{ background: theme.palette.bg }}>
+      <div className="mx-auto max-w-3xl text-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="font-sans text-xs uppercase tracking-[0.25em]"
+          style={{ color: theme.palette.textMuted }}
+        >
+          Kisah Kami
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-2 font-display text-3xl font-light md:text-4xl"
+          style={{ color: theme.palette.accent }}
+        >
+          Perjalanan Cinta
+        </motion.h2>
+
+        <SectionDivider theme={theme} />
+
+        <div className="relative mt-12 space-y-8 text-left">
+          {/* Vertical Connecting Line */}
+          <div
+            className="absolute bottom-3 left-4 top-3 w-0.5 md:left-1/2 md:-translate-x-1/2"
+            style={{ background: theme.palette.border }}
+          />
+
+          {theme.timeline.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: i * 0.1 }}
+              className={`relative flex flex-col items-start md:flex-row ${
+                i % 2 === 0 ? "md:flex-row-reverse" : ""
+              }`}
+            >
+              {/* Timeline Dot */}
+              <div
+                className="absolute left-4 top-1.5 z-10 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border shadow-md md:left-1/2"
+                style={{
+                  borderColor: theme.palette.accent,
+                  background: theme.palette.card,
+                  color: theme.palette.accent,
+                }}
+              >
+                <Heart size={10} className="fill-current" />
+              </div>
+
+              {/* Content Card */}
+              <div className="ml-10 md:ml-0 md:w-1/2 md:px-8">
+                <div
+                  className="rounded-2xl border p-5 shadow-lg backdrop-blur-md"
+                  style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+                >
+                  <span
+                    className="inline-block rounded-full px-3 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: `${theme.palette.accent}20`, color: theme.palette.accent }}
+                  >
+                    {item.year}
+                  </span>
+                  <h4
+                    className="mt-2 font-display text-lg font-medium"
+                    style={{ color: theme.palette.accent }}
+                  >
+                    {item.title}
+                  </h4>
+                  <p
+                    className="mt-1 font-sans text-xs leading-relaxed opacity-90"
+                    style={{ color: theme.palette.textMuted }}
+                  >
+                    {item.desc}
+                  </p>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -509,634 +1638,165 @@ function GallerySection({ theme }: { theme: DemoTheme }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   Section: Love Story Timeline
-───────────────────────────────────────── */
-function TimelineSection({ theme }: { theme: DemoTheme }) {
-  return (
-    <section
-      className="py-20 px-4"
-      style={{ background: theme.palette.bgSecondary }}
-    >
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-10 text-center">
-          <p
-            className="font-sans text-xs uppercase tracking-[0.2em]"
-            style={{ color: theme.palette.textMuted }}
-          >
-            Perjalanan Cinta
-          </p>
-          <h2
-            className="mt-2 font-display text-3xl font-light"
-            style={{ color: theme.palette.text }}
-          >
-            Kisah Kita
-          </h2>
-        </div>
-
-        <div className="relative">
-          {/* Vertical line */}
-          <div
-            className="absolute bottom-0 left-[5.5rem] top-0 w-px sm:left-1/2"
-            style={{ background: theme.palette.border }}
-            aria-hidden="true"
-          />
-
-          <div className="space-y-8">
-            {theme.timeline.map((item, i) => {
-              const isRight = i % 2 === 0;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: isRight ? -16 : 16 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.5 }}
-                  className="relative flex items-start gap-4 sm:gap-0"
-                >
-                  {/* Desktop layout */}
-                  <div
-                    className={`hidden w-full sm:grid sm:grid-cols-2 sm:gap-8 ${isRight ? "" : "sm:[&>*:first-child]:order-last sm:[&>*:last-child]:order-first"}`}
-                  >
-                    <div
-                      className={`rounded-xl border p-4 ${isRight ? "text-right" : "text-left"}`}
-                      style={{
-                        background: theme.palette.card,
-                        borderColor: theme.palette.border,
-                      }}
-                    >
-                      <span
-                        className="font-display text-lg font-light"
-                        style={{ color: theme.palette.accent }}
-                      >
-                        {item.year}
-                      </span>
-                      <p
-                        className="mt-0.5 font-sans text-sm font-medium"
-                        style={{ color: theme.palette.text }}
-                      >
-                        {item.title}
-                      </p>
-                      <p
-                        className="mt-1 font-sans text-xs leading-relaxed"
-                        style={{ color: theme.palette.textMuted }}
-                      >
-                        {item.desc}
-                      </p>
-                    </div>
-                    {/* Center dot */}
-                    <div className="flex items-center justify-center">
-                      <div
-                        className="z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2"
-                        style={{
-                          background: theme.palette.accentLight,
-                          borderColor: theme.palette.accent,
-                        }}
-                        aria-hidden="true"
-                      >
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: theme.palette.accent }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mobile layout */}
-                  <div className="flex w-full items-start gap-4 sm:hidden">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className="z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2"
-                        style={{
-                          background: theme.palette.accentLight,
-                          borderColor: theme.palette.accent,
-                        }}
-                        aria-hidden="true"
-                      >
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: theme.palette.accent }}
-                        />
-                      </div>
-                    </div>
-                    <div
-                      className="flex-1 rounded-xl border p-4"
-                      style={{
-                        background: theme.palette.card,
-                        borderColor: theme.palette.border,
-                      }}
-                    >
-                      <span
-                        className="font-display text-base font-light"
-                        style={{ color: theme.palette.accent }}
-                      >
-                        {item.year}
-                      </span>
-                      <p
-                        className="mt-0.5 font-sans text-sm font-medium"
-                        style={{ color: theme.palette.text }}
-                      >
-                        {item.title}
-                      </p>
-                      <p
-                        className="mt-1 font-sans text-xs leading-relaxed"
-                        style={{ color: theme.palette.textMuted }}
-                      >
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Section: RSVP Preview
-───────────────────────────────────────── */
-function RsvpSection({ theme }: { theme: DemoTheme }) {
-  const [selected, setSelected] = React.useState<"hadir" | "tidak" | null>(null);
-  const [name, setName] = React.useState("");
-  const [submitted, setSubmitted] = React.useState(false);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (name && selected) setSubmitted(true);
-  }
+/* SECTION: Photo Gallery with Lightbox */
+function GallerySection({ theme }: { theme: DemoTheme }) {
+  const [selectedPhoto, setSelectedPhoto] = React.useState<number | null>(null);
 
   return (
-    <section className="py-20 px-4" style={{ background: theme.palette.bg }}>
-      <div className="mx-auto max-w-md text-center">
-        <p
-          className="font-sans text-xs uppercase tracking-[0.2em]"
+    <section className="relative px-6 py-24" style={{ background: theme.palette.bgSecondary }}>
+      <div className="mx-auto max-w-4xl text-center">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="font-sans text-xs uppercase tracking-[0.25em]"
           style={{ color: theme.palette.textMuted }}
         >
-          Konfirmasi Kehadiran
-        </p>
-        <h2
-          className="mt-2 font-display text-3xl font-light"
-          style={{ color: theme.palette.text }}
-        >
-          RSVP
-        </h2>
-        <p
-          className="mt-3 font-sans text-sm leading-relaxed"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Mohon konfirmasi kehadiran Anda sebelum{" "}
-          <strong style={{ color: theme.palette.text }}>1 Oktober 2025</strong>
-        </p>
-
-        {submitted ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-8 rounded-2xl border p-8"
-            style={{ background: theme.palette.bgSecondary, borderColor: theme.palette.border }}
-          >
-            <div
-              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
-              style={{ background: theme.palette.accentLight }}
-            >
-              <Check size={24} style={{ color: theme.palette.accent }} aria-hidden="true" />
-            </div>
-            <p
-              className="font-display text-lg font-light"
-              style={{ color: theme.palette.text }}
-            >
-              Terima kasih, {name}!
-            </p>
-            <p
-              className="mt-2 font-sans text-sm"
-              style={{ color: theme.palette.textMuted }}
-            >
-              {selected === "hadir"
-                ? "Kami sangat senang Anda akan hadir. Sampai jumpa di hari istimewa kami!"
-                : "Sayang sekali Anda tidak bisa hadir. Doa dan restu Anda sangat berarti bagi kami."}
-            </p>
-          </motion.div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-8 space-y-4 text-left"
-          >
-            <div>
-              <label
-                htmlFor="rsvp-name"
-                className="block font-sans text-xs font-medium uppercase tracking-wide"
-                style={{ color: theme.palette.textMuted }}
-              >
-                Nama Lengkap
-              </label>
-              <input
-                id="rsvp-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Masukkan nama Anda"
-                required
-                className="mt-1.5 w-full rounded-xl border bg-transparent px-4 py-3 font-sans text-sm outline-none transition-colors placeholder:opacity-40"
-                style={{
-                  borderColor: theme.palette.border,
-                  color: theme.palette.text,
-                  background: theme.palette.card,
-                }}
-              />
-            </div>
-
-            <div>
-              <p
-                className="mb-2 font-sans text-xs font-medium uppercase tracking-wide"
-                style={{ color: theme.palette.textMuted }}
-              >
-                Kehadiran
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: "hadir" as const, label: "✓ Hadir" },
-                  { value: "tidak" as const, label: "✗ Tidak Hadir" },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setSelected(opt.value)}
-                    className="rounded-xl border py-3 font-sans text-sm font-medium transition-all"
-                    style={{
-                      borderColor:
-                        selected === opt.value ? theme.palette.accent : theme.palette.border,
-                      background:
-                        selected === opt.value
-                          ? theme.palette.accentLight
-                          : theme.palette.card,
-                      color:
-                        selected === opt.value
-                          ? theme.palette.accent
-                          : theme.palette.textMuted,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={!name || !selected}
-              className="w-full rounded-xl py-3 font-sans text-sm font-medium uppercase tracking-widest text-white transition-opacity disabled:opacity-40"
-              style={{ background: theme.palette.accent }}
-            >
-              Kirim Konfirmasi
-            </button>
-          </form>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Section: Wedding Gift
-───────────────────────────────────────── */
-function GiftSection({ theme }: { theme: DemoTheme }) {
-  const [copied, setCopied] = React.useState<string | null>(null);
-
-  function copy(text: string, id: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
-    });
-  }
-
-  return (
-    <section
-      className="py-20 px-4"
-      style={{ background: theme.palette.bgSecondary }}
-    >
-      <div className="mx-auto max-w-md text-center">
-        <Gift
-          size={22}
-          className="mx-auto mb-4"
+          Memori Indah
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-2 font-display text-3xl font-light md:text-4xl"
           style={{ color: theme.palette.accent }}
-          aria-hidden="true"
-        />
-        <p
-          className="font-sans text-xs uppercase tracking-[0.2em]"
-          style={{ color: theme.palette.textMuted }}
         >
-          Hadiah Pernikahan
-        </p>
-        <h2
-          className="mt-2 font-display text-3xl font-light"
-          style={{ color: theme.palette.text }}
-        >
-          Amplop Digital
-        </h2>
-        <p
-          className="mt-3 font-sans text-sm leading-relaxed"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Kehadiran dan doa restu Anda adalah hadiah terbaik bagi kami. Namun jika
-          Anda berkenan memberikan hadiah, berikut informasinya.
-        </p>
+          Galeri Foto
+        </motion.h2>
 
-        <div className="mt-8 space-y-3">
-          {theme.gifts.map((gift, i) => (
-            <div
+        <SectionDivider theme={theme} />
+
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6">
+          {theme.gallery.map((gradient, i) => (
+            <motion.div
               key={i}
-              className="flex items-center justify-between rounded-2xl border p-4"
-              style={{ background: theme.palette.card, borderColor: theme.palette.border }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08, duration: 0.7 }}
+              onClick={() => setSelectedPhoto(i)}
+              className="group relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border shadow-md transition-all hover:scale-105 hover:shadow-2xl"
+              style={{ borderColor: theme.palette.border }}
             >
-              <div className="text-left">
-                <p
-                  className="font-sans text-xs font-semibold uppercase tracking-wide"
-                  style={{ color: theme.palette.accent }}
-                >
-                  {gift.bank}
-                </p>
-                <p
-                  className="mt-0.5 font-sans text-base font-medium tracking-widest"
-                  style={{ color: theme.palette.text }}
-                >
-                  {gift.account}
-                </p>
-                <p
-                  className="font-sans text-xs"
-                  style={{ color: theme.palette.textMuted }}
-                >
-                  a/n {gift.name}
-                </p>
+              <div
+                className={`h-full w-full bg-gradient-to-br ${gradient} transition-transform duration-700 group-hover:scale-110`}
+              />
+
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="rounded-full bg-white/80 p-2 text-black shadow-lg backdrop-blur-md">
+                  <Sparkles size={16} />
+                </div>
               </div>
-              <button
-                onClick={() => copy(gift.account, `${i}`)}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-2 font-sans text-xs transition-all hover:opacity-70"
-                style={{
-                  borderColor: theme.palette.border,
-                  color: copied === `${i}` ? theme.palette.accent : theme.palette.textMuted,
-                }}
-                aria-label={`Salin nomor rekening ${gift.bank}`}
-              >
-                {copied === `${i}` ? (
-                  <><Check size={11} aria-hidden="true" /> Disalin</>
-                ) : (
-                  <><Copy size={11} aria-hidden="true" /> Salin</>
-                )}
-              </button>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
-    </section>
-  );
-}
 
-/* ─────────────────────────────────────────
-   Section: Closing
-───────────────────────────────────────── */
-function ClosingSection({ theme }: { theme: DemoTheme }) {
-  return (
-    <section
-      className="relative overflow-hidden py-24 px-4 text-center"
-      style={{ background: theme.palette.bg }}
-    >
-      {/* Background ornaments */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-5">
-        <FloralOrnament color={theme.palette.accent} size={400} petals={12} opacity={1} />
-      </div>
-
-      <div className="relative mx-auto max-w-md">
-        <FloralOrnament
-          color={theme.palette.accent}
-          size={48}
-          opacity={0.4}
-        />
-
-        <h2
-          className="mt-6 font-display text-4xl font-light leading-tight md:text-5xl"
-          style={{ color: theme.palette.accent }}
-        >
-          {theme.couple.bride.split(" ")[0]}
-          <br />
-          <span className="font-display text-2xl font-light opacity-60">&amp;</span>
-          <br />
-          {theme.couple.groom.split(" ")[0]}
-        </h2>
-
-        <div className="my-6 flex items-center justify-center gap-4">
-          <div className="h-px w-16" style={{ background: theme.palette.border }} />
-          <span className="font-display text-sm" style={{ color: theme.palette.accent }}>✦</span>
-          <div className="h-px w-16" style={{ background: theme.palette.border }} />
-        </div>
-
-        <p
-          className="font-display text-sm italic leading-relaxed"
-          style={{ color: theme.palette.textMuted }}
-        >
-          &ldquo;Dan di antara tanda-tanda kekuasaan-Nya ialah Dia menciptakan untukmu
-          istri-istri dari jenismu sendiri, supaya kamu cenderung dan merasa tentram
-          kepadanya.&rdquo;
-        </p>
-        <p
-          className="mt-2 font-sans text-xs uppercase tracking-widest"
-          style={{ color: theme.palette.textMuted, opacity: 0.5 }}
-        >
-          QS. Ar-Rum: 21
-        </p>
-
-        <p
-          className="mt-8 font-sans text-sm leading-relaxed"
-          style={{ color: theme.palette.textMuted }}
-        >
-          Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i
-          berkenan hadir untuk memberikan doa restu.
-        </p>
-
-        <p
-          className="mt-6 font-display text-lg"
-          style={{ color: theme.palette.text }}
-        >
-          Kami yang berbahagia,
-        </p>
-        <p
-          className="mt-1 font-display text-xl font-light"
-          style={{ color: theme.palette.accent }}
-        >
-          {theme.couple.bride} & {theme.couple.groom}
-        </p>
-
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <div className="h-px w-12" style={{ background: theme.palette.border }} />
-          <Heart
-            size={14}
-            style={{ color: theme.palette.accent, fill: theme.palette.accent }}
-            aria-hidden="true"
-          />
-          <div className="h-px w-12" style={{ background: theme.palette.border }} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Demo navigation bar
-───────────────────────────────────────── */
-function DemoNav({ theme }: { theme: DemoTheme }) {
-  return (
-    <nav
-      className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 py-3 backdrop-blur-md"
-      style={{
-        background: `${theme.palette.bg}e0`,
-        borderBottom: `1px solid ${theme.palette.border}`,
-      }}
-      aria-label="Demo navigation"
-    >
-      <Link
-        href="/demo"
-        className="flex items-center gap-2 font-sans text-sm transition-opacity hover:opacity-70"
-        style={{ color: theme.palette.textMuted }}
-      >
-        <ArrowLeft size={15} aria-hidden="true" />
-        Kembali ke Galeri
-      </Link>
-
-      <div className="flex items-center gap-1.5">
-        <span
-          className="rounded-full border px-2.5 py-0.5 font-sans text-[10px] font-medium uppercase tracking-wide"
-          style={{
-            background: theme.palette.accentLight,
-            borderColor: theme.palette.border,
-            color: theme.palette.accent,
-          }}
-        >
-          {theme.name}
-        </span>
-        <span
-          className="rounded-full bg-muted px-2.5 py-0.5 font-sans text-[10px] text-muted-foreground"
-        >
-          Demo
-        </span>
-      </div>
-
-      <Button variant="brand" size="sm" asChild className="h-8 rounded-full px-4 text-xs">
-        <Link href={ROUTES.register}>Gunakan Tema</Link>
-      </Button>
-    </nav>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Music toggle button (floating)
-───────────────────────────────────────── */
-function MusicButton({ theme }: { theme: DemoTheme }) {
-  const [playing, setPlaying] = React.useState(false);
-
-  return (
-    <button
-      onClick={() => setPlaying(!playing)}
-      className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border shadow-soft transition-all hover:scale-105 active:scale-95"
-      style={{
-        background: theme.palette.card,
-        borderColor: theme.palette.border,
-        color: playing ? theme.palette.accent : theme.palette.textMuted,
-      }}
-      aria-label={playing ? "Matikan musik" : "Putar musik"}
-      title={playing ? "Musik: Menyala" : "Musik: Mati (Demo)"}
-    >
-      {playing ? (
-        <Music2 size={18} className="animate-pulse" aria-hidden="true" />
-      ) : (
-        <VolumeX size={18} aria-hidden="true" />
-      )}
-    </button>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Main export: InvitationDemo
-───────────────────────────────────────── */
-export function InvitationDemo({ theme }: { theme: DemoTheme }) {
-  const [opened, setOpened] = React.useState(false);
-
-  return (
-    <div className="min-h-screen" style={{ background: theme.palette.bg }}>
-      <DemoNav theme={theme} />
-      <MusicButton theme={theme} />
-
-      <AnimatePresence mode="wait">
-        {!opened ? (
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selectedPhoto !== null && (
           <motion.div
-            key="cover"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <CoverSection theme={theme} onOpen={() => setOpened(true)} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="pt-14"
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedPhoto(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6 backdrop-blur-lg"
           >
-            <CountdownSection theme={theme} />
-            <CoupleSection theme={theme} />
-            <GallerySection theme={theme} />
-            <EventSection theme={theme} />
-            <TimelineSection theme={theme} />
-            <RsvpSection theme={theme} />
-            <GiftSection theme={theme} />
-            <ClosingSection theme={theme} />
-
-            {/* Bottom CTA bar */}
-            <div
-              className="border-t py-10 text-center"
-              style={{
-                background: theme.palette.bgSecondary,
-                borderColor: theme.palette.border,
-              }}
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-3xl border shadow-2xl"
+              style={{ borderColor: theme.palette.border }}
             >
-              <p
-                className="font-sans text-xs"
-                style={{ color: theme.palette.textMuted }}
+              <div className={`h-full w-full bg-gradient-to-br ${theme.gallery[selectedPhoto]}`} />
+              <button
+                onClick={() => setSelectedPhoto(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/50 p-2.5 text-xs text-white transition-opacity hover:opacity-80"
               >
-                Undangan ini dibuat dengan
-              </p>
-              <p
-                className="mt-1 font-display text-lg"
-                style={{ color: theme.palette.accent }}
-              >
-                TamuKita
-              </p>
-              <div className="mt-4 flex justify-center gap-3">
-                <Button
-                  variant="brand"
-                  size="sm"
-                  asChild
-                  className="h-9 rounded-full px-5 text-xs"
-                >
-                  <Link href={ROUTES.register}>Buat Undangan Saya</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="h-9 rounded-full px-5 text-xs"
-                >
-                  <Link href="/demo">Lihat Tema Lain</Link>
-                </Button>
-              </div>
-            </div>
+                ✕
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN DEMO COMPONENT ENTRY POINT
+════════════════════════════════════════════════════════════════════════════ */
+export function InvitationDemo({
+  theme,
+  guestName = "Tamu Undangan Spesial",
+}: {
+  theme: DemoTheme;
+  guestName?: string;
+}) {
+  const [isOpened, setIsOpened] = React.useState(false);
+
+  return (
+    <div
+      className="relative min-h-screen font-sans selection:bg-brand-500 selection:text-white"
+      style={{ background: theme.palette.bg, color: theme.palette.text }}
+    >
+      {/* Dynamic Theme Floating Petals Engine */}
+      <FloatingPetalsSystem theme={theme} />
+
+      {/* Interactive Top Floating Control Bar */}
+      <DemoTopControlBar theme={theme} />
+
+      {/* Opening Envelope Screen */}
+      <CoverEnvelopeSection
+        theme={theme}
+        isOpened={isOpened}
+        guestName={guestName}
+        onOpen={() => setIsOpened(true)}
+      />
+
+      {/* Live Audio Visualizer Widget */}
+      <MusicPlayerWidget theme={theme} isOpened={isOpened} />
+
+      {/* Main Invitation Sections */}
+      {isOpened && (
+        <main className="relative z-20">
+          <HeroCoverSection theme={theme} />
+          <QuoteSection theme={theme} />
+          <CoupleSection theme={theme} />
+          <TimelineSection theme={theme} />
+          <EventSection theme={theme} />
+          <GallerySection theme={theme} />
+          <GiftSection theme={theme} />
+          <RsvpSection theme={theme} />
+
+          {/* Footer */}
+          <footer
+            className="border-t px-6 py-12 text-center"
+            style={{ borderColor: theme.palette.border, background: theme.palette.bg }}
+          >
+            <p className="font-display text-lg font-light" style={{ color: theme.palette.accent }}>
+              {theme.couple.bride} &amp; {theme.couple.groom}
+            </p>
+            <p
+              className="mt-2 font-sans text-xs opacity-60"
+              style={{ color: theme.palette.textMuted }}
+            >
+              Terima kasih telah menjadi bagian dari hari bahagia kami.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 font-sans text-[10px] uppercase tracking-wider transition-opacity hover:opacity-70"
+                style={{ borderColor: theme.palette.border, color: theme.palette.textMuted }}
+              >
+                Dibuat dengan <Sparkles size={11} className="text-amber-500" /> TamuKita
+              </Link>
+            </div>
+          </footer>
+        </main>
+      )}
     </div>
   );
 }

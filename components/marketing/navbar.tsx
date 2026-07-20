@@ -12,9 +12,8 @@ import { ROUTES } from "@/constants/routes";
 
 const navLinks = [
   { label: "Fitur", href: "/#features" },
-  { label: "Tema", href: ROUTES.templates },
+  { label: "Tema & Demo", href: ROUTES.demo },
   { label: "Harga", href: ROUTES.pricing },
-  { label: "Demo", href: ROUTES.demo },
 ];
 
 export function MarketingNavbar() {
@@ -57,8 +56,7 @@ export function MarketingNavbar() {
         <ul className="hidden items-center lg:flex" role="list">
           {navLinks.map((link) => {
             const isActive =
-              link.href === pathname ||
-              (link.href.startsWith("/#") && pathname === "/");
+              link.href === pathname || (link.href.startsWith("/#") && pathname === "/");
             return (
               <li key={link.href}>
                 <Link
@@ -66,7 +64,7 @@ export function MarketingNavbar() {
                   className={cn(
                     "relative rounded-md px-3.5 py-2 font-sans text-sm transition-colors",
                     isActive
-                      ? "text-foreground font-medium"
+                      ? "font-medium text-foreground"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -132,7 +130,7 @@ export function MarketingNavbar() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="block rounded-lg px-3 py-2.5 font-sans text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                      className="block rounded-lg px-3 py-2.5 font-sans text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                       onClick={() => setMobileOpen(false)}
                     >
                       {link.label}

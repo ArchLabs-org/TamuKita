@@ -9,7 +9,7 @@ import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = constructMetadata({
-  title: "Pernikahan",
+  title: "Pernikahan Saya",
   noIndex: true,
 });
 
@@ -21,29 +21,31 @@ export default async function WeddingsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="font-display text-2xl font-semibold text-foreground">Pernikahan</h2>
+          <h2 className="font-display text-2xl font-semibold text-foreground">
+            Daftar Undangan Pernikahan
+          </h2>
           <p className="mt-0.5 font-sans text-sm text-muted-foreground">
-            Kelola semua undangan pernikahan kalian
+            Kelola semua undangan pernikahan digital yang telah kalian buat.
           </p>
         </div>
-        <Button variant="brand" size="sm" asChild>
+        <Button variant="brand" size="sm" asChild className="gap-1.5 rounded-full text-xs">
           <Link href="/dashboard/create">
             <Plus size={15} aria-hidden="true" />
-            Buat Undangan
+            Buat Undangan Baru
           </Link>
         </Button>
       </div>
 
       {weddings.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
             <Heart size={22} className="text-brand-500" aria-hidden="true" />
           </div>
           <h3 className="font-display text-lg font-semibold text-foreground">Belum ada undangan</h3>
           <p className="mx-auto mt-2 max-w-sm font-sans text-sm text-muted-foreground">
-            Buat undangan pernikahan pertama kalian sekarang.
+            Buat undangan pernikahan pertama kalian sekarang dalam 5 menit.
           </p>
-          <Button variant="brand" size="sm" className="mt-5" asChild>
+          <Button variant="brand" size="sm" className="mt-5 rounded-full text-xs" asChild>
             <Link href="/dashboard/create">
               <Plus size={15} aria-hidden="true" />
               Buat Undangan Pertama
@@ -88,8 +90,8 @@ export default async function WeddingsPage() {
 
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
                 <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs" asChild>
-                  <Link href={`/demo/${w.theme_id || "aurora"}`} target="_blank">
-                    Preview
+                  <Link href={`/${w.slug}`} target="_blank">
+                    Buka Undangan
                   </Link>
                 </Button>
 

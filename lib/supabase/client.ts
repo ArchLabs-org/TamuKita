@@ -19,8 +19,7 @@ export function createClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
-        "[TamuKita] Supabase is not configured.\n" +
-          "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local",
+        "[TamuKita] NEXT_PUBLIC_SUPABASE_URL atau NEXT_PUBLIC_SUPABASE_ANON_KEY belum diset di .env.local",
       );
     }
     return null;

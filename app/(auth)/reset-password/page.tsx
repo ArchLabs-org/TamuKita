@@ -1,25 +1,28 @@
 import type { Metadata } from "next";
-import { RegisterForm } from "@/features/authentication/register-form";
+import { Suspense } from "react";
+import { ResetPasswordForm } from "@/features/authentication/reset-password-form";
 import { constructMetadata } from "@/lib/helpers/metadata";
 
 export const metadata: Metadata = constructMetadata({
-  title: "Daftar Gratis",
+  title: "Reset Password",
   noIndex: true,
-  path: "/register",
+  path: "/reset-password",
 });
 
-export default function RegisterPage() {
+export default function ResetPasswordPage() {
   return (
     <div>
       <div className="mb-8">
         <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-          Buat akun gratis
+          Buat password baru
         </h1>
         <p className="mt-2 font-sans text-sm text-muted-foreground">
-          Mulai buat website pernikahan kalian hari ini
+          Masukkan password baru untuk akun Anda.
         </p>
       </div>
-      <RegisterForm />
+      <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-muted" />}>
+        <ResetPasswordForm />
+      </Suspense>
     </div>
   );
 }

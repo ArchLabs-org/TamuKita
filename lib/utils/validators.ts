@@ -2,11 +2,7 @@ import { z } from "zod";
 
 export const emailSchema = z.string().email("Email tidak valid").min(1, "Email wajib diisi");
 
-export const passwordSchema = z
-  .string()
-  .min(8, "Password minimal 8 karakter")
-  .regex(/[A-Z]/, "Password harus mengandung huruf kapital")
-  .regex(/[0-9]/, "Password harus mengandung angka");
+export const passwordSchema = z.string().min(8, "Password minimal 8 karakter");
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -43,7 +39,12 @@ export const guestSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type WeddingInput = z.infer<typeof weddingSchema>;
 export type GuestInput = z.infer<typeof guestSchema>;

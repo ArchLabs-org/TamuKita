@@ -1,36 +1,43 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loginSchema, type LoginInput } from "@/lib/utils/validators";
 import { ROUTES } from "@/constants/routes";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Password minimal 8 karakter"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Password tidak cocok",
+    path: ["confirmPassword"],
+  });
+
+type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export function ResetPasswordForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
-
-  // Detect callback error (e.g. email confirmation failed)
-  const callbackError = searchParams.get("error");
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<ResetPasswordInput>({
+    resolver: zodResolver(resetPasswordSchema),
   });
 
-  async function onSubmit(data: LoginInput) {
+  async function onSubmit(data: ResetPasswordInput) {
     setServerError(null);
 
     const supabase = createClient();
@@ -40,39 +47,21 @@ export function LoginForm() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
+    const { error } = await supabase.auth.updateUser({
       password: data.password,
     });
 
     if (error) {
-      setServerError(
-        error.message === "Invalid login credentials"
-          ? "Email atau password salah."
-          : error.message,
-      );
+      setServerError(error.message);
       return;
     }
 
-    const redirectTo = searchParams.get("redirectTo");
-    const dest = redirectTo && redirectTo.startsWith("/") ? redirectTo : ROUTES.dashboard;
-
-    router.push(dest);
+    router.push(ROUTES.dashboard);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-      {/* Callback error (e.g. from /api/auth/callback) */}
-      {callbackError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
-        >
-          Terjadi masalah saat konfirmasi email. Silakan masuk langsung.
-        </div>
-      )}
-
       {serverError && (
         <div
           role="alert"
@@ -83,39 +72,13 @@ export function LoginForm() {
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          placeholder="nama@email.com"
-          error={!!errors.email}
-          aria-describedby={errors.email ? "email-error" : undefined}
-          {...register("email")}
-        />
-        {errors.email && (
-          <p id="email-error" role="alert" className="text-sm text-destructive">
-            {errors.email.message}
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <Link
-            href={ROUTES.forgotPassword}
-            className="text-sm text-brand-600 hover:text-brand-700 hover:underline"
-          >
-            Lupa password?
-          </Link>
-        </div>
+        <Label htmlFor="password">Password Baru</Label>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="••••••••"
+            autoComplete="new-password"
+            placeholder="Minimal 8 karakter"
             error={!!errors.password}
             aria-describedby={errors.password ? "password-error" : undefined}
             className="pr-10"
@@ -137,6 +100,24 @@ export function LoginForm() {
         )}
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword">Konfirmasi Password Baru</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Ulangi password baru"
+          error={!!errors.confirmPassword}
+          aria-describedby={errors.confirmPassword ? "confirm-error" : undefined}
+          {...register("confirmPassword")}
+        />
+        {errors.confirmPassword && (
+          <p id="confirm-error" role="alert" className="text-sm text-destructive">
+            {errors.confirmPassword.message}
+          </p>
+        )}
+      </div>
+
       <Button
         type="submit"
         variant="brand"
@@ -148,19 +129,12 @@ export function LoginForm() {
         {isSubmitting ? (
           <>
             <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-            Masuk...
+            Menyimpan...
           </>
         ) : (
-          "Masuk"
+          "Simpan Password Baru"
         )}
       </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        Belum punya akun?{" "}
-        <Link href={ROUTES.register} className="font-medium text-brand-600 hover:underline">
-          Daftar gratis
-        </Link>
-      </p>
     </form>
   );
 }
