@@ -197,12 +197,16 @@ export default function CreateWeddingWizardPage() {
       gifts: formData.gifts.filter((g) => g.bank && g.account),
     });
     setSaving(false);
+
     if ("error" in result && result.error) {
-      setServerError(result.error as string);
+      setServerError(result.error);
       return;
     }
-    // Redirect ke halaman kelola undangan
-    router.push(`${ROUTES.weddings}/${result.weddingId}`);
+
+    if ("success" in result && result.success) {
+      // Redirect ke halaman kelola undangan
+      router.push(`${ROUTES.weddings}/${result.weddingId}`);
+    }
   };
 
   const selectedTheme = demoThemes.find((t) => t.id === formData.themeId) ?? demoThemes[0];

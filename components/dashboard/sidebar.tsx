@@ -47,13 +47,13 @@ export function DashboardSidebar({ userName = "Pengguna", userEmail = "" }: Dash
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-col border-r border-sidebar-border bg-sidebar-background transition-all duration-300",
+        "border-sidebar-border bg-sidebar-background relative flex h-full flex-col border-r transition-all duration-300",
         collapsed ? "w-16" : "w-60",
       )}
       aria-label="Sidebar navigasi"
     >
       {/* Logo */}
-      <div className={cn("flex h-14 items-center border-b border-sidebar-border px-4")}>
+      <div className={cn("border-sidebar-border flex h-14 items-center border-b px-4")}>
         {!collapsed && <Logo size="sm" variant="white" />}
       </div>
 
@@ -102,17 +102,20 @@ export function DashboardSidebar({ userName = "Pengguna", userEmail = "" }: Dash
           </Avatar>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
-              <p className="truncate text-xs text-sidebar-foreground/60">{userEmail}</p>
+              <p className="text-sidebar-foreground truncate text-sm font-medium">{userName}</p>
+              <p className="text-sidebar-foreground/60 truncate text-xs">{userEmail}</p>
             </div>
           )}
           {!collapsed && (
-            <button
-              className="rounded p-1 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
-              aria-label="Keluar"
-            >
-              <LogOut size={14} aria-hidden="true" />
-            </button>
+            <form action="/api/auth/signout" method="POST">
+              <button
+                type="submit"
+                className="text-sidebar-foreground/60 hover:text-sidebar-foreground rounded p-1 transition-colors"
+                aria-label="Keluar"
+              >
+                <LogOut size={14} aria-hidden="true" />
+              </button>
+            </form>
           )}
         </div>
       </div>
@@ -120,7 +123,7 @@ export function DashboardSidebar({ userName = "Pengguna", userEmail = "" }: Dash
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-foreground transition-colors"
+        className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:text-foreground"
         aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
       >
         {collapsed ? (

@@ -116,16 +116,18 @@ export async function createWeddingAction(data: WeddingFormData) {
       .single();
 
     if (error) {
-      console.warn("[createWeddingAction fallback]", error.message);
-      return { success: true, weddingId: `wedding-${Date.now()}`, slug };
+      console.error("[createWeddingAction] Insert failed:", error.message);
+      return { error: `Gagal menyimpan undangan: ${error.message}` };
     }
 
     revalidatePath(ROUTES.weddings);
     revalidatePath(ROUTES.dashboard);
 
     return { success: true, weddingId: wedding.id, slug: wedding.slug };
-  } catch {
-    return { success: true, weddingId: `wedding-${Date.now()}`, slug };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[createWeddingAction] Catch error:", errorMsg);
+    return { error: `Error: ${errorMsg}` };
   }
 }
 
