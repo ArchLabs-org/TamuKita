@@ -1,5 +1,8 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Users, Palette, CheckCircle2, Sparkles, Globe, Share2 } from "lucide-react";
 import { constructMetadata } from "@/lib/helpers/metadata";
 import { requireAuth } from "@/lib/auth/helpers";
@@ -49,9 +52,9 @@ export default async function WeddingDetailPage({ params }: PageProps) {
 
   const displayData = wedding;
   const invitationUrl = `/${displayData.slug}`;
-  const productionUrl = process.env.NEXT_PUBLIC_SITE_URL
-    ? `${process.env.NEXT_PUBLIC_SITE_URL}${invitationUrl}`
-    : `http://localhost:3000${invitationUrl}`;
+  const productionUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const fullInvitationUrl = `${productionUrl}${invitationUrl}`;
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -84,7 +87,7 @@ export default async function WeddingDetailPage({ params }: PageProps) {
               {displayData.bride_name} &amp; {displayData.groom_name}
             </h1>
             <p className="mt-2 break-all font-mono text-xs text-brand-600">
-              Link URL: {productionUrl}
+              Link URL: {fullInvitationUrl}
             </p>
             {displayData.wedding_date && (
               <p className="mt-2 font-sans text-xs text-muted-foreground">
@@ -320,19 +323,25 @@ export default async function WeddingDetailPage({ params }: PageProps) {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {displayData.bride_photo_url && (
                 <div className="h-40 overflow-hidden rounded-xl bg-muted">
-                  <img
+                  <Image
                     src={displayData.bride_photo_url}
                     alt="Bride"
                     className="h-full w-full object-cover"
+                    width={400}
+                    height={400}
+                    priority
                   />
                 </div>
               )}
               {displayData.groom_photo_url && (
                 <div className="h-40 overflow-hidden rounded-xl bg-muted">
-                  <img
+                  <Image
                     src={displayData.groom_photo_url}
                     alt="Groom"
                     className="h-full w-full object-cover"
+                    width={400}
+                    height={400}
+                    priority
                   />
                 </div>
               )}
@@ -341,7 +350,13 @@ export default async function WeddingDetailPage({ params }: PageProps) {
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 {displayData.gallery_urls.map((url, idx) => (
                   <div key={idx} className="h-32 overflow-hidden rounded-lg bg-muted">
-                    <img src={url} alt={`Gallery ${idx}`} className="h-full w-full object-cover" />
+                    <Image
+                      src={url}
+                      alt={`Gallery ${idx}`}
+                      className="h-full w-full object-cover"
+                      width={300}
+                      height={300}
+                    />
                   </div>
                 ))}
               </div>

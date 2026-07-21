@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import {
   Users,
   Download,
@@ -14,6 +15,7 @@ import {
   Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { addGuestAction } from "@/lib/actions/guest-actions";
 import { cn } from "@/lib/utils";
 
 interface GuestItem {
@@ -112,12 +114,31 @@ export function GuestsClient({
     reader.readAsText(file);
   };
 
-  const handleAddSingleGuest = (e: React.FormEvent) => {
+  const handleAddSingleGuest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGuestName) return;
+    if (!newGuestName || !initialWedding) {
+      toast.error("Nama tamu dan wedding harus ada");
+      return;
+    }
 
+    // Show loading toast
+    const toastId = toast.loading("Menambah tamu...");
+
+    // Save to database
+    const result = await addGuestAction({
+      weddingId: initialWedding.id,
+      name: newGuestName,
+      phone: newGuestPhone || undefined,
+    });
+
+    if ("error" in result && result.error) {
+      toast.error(result.error, { id: toastId });
+      return;
+    }
+
+    // Success — add to local state too
     const item: GuestItem = {
-      id: `guest-${Date.now()}`,
+      id: result.guest!.id,
       name: newGuestName,
       phone: newGuestPhone || null,
       email: null,
@@ -129,6 +150,8 @@ export function GuestsClient({
     setNewGuestName("");
     setNewGuestPhone("");
     setShowAddModal(false);
+
+    toast.success("Tamu berhasil ditambahkan!", { id: toastId });
   };
 
   const copyGuestLink = (guestName: string, id: string) => {

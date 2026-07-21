@@ -1,4 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getWeddingBySlug } from "@/lib/db/weddings";
 import { demoThemes, type DemoTheme } from "@/features/demo/data";
 import { InvitationDemo } from "@/features/demo/invitation-demo";
@@ -43,9 +46,10 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
 
   const wedding = await getWeddingBySlug(slug);
 
-  let theme: DemoTheme;
+  let theme: DemoTheme | null = null;
 
   if (wedding) {
+    // Found wedding in DB — use it
     const w = wedding as WeddingRow;
     const baseTheme = demoThemes.find((t) => t.id === (w.theme_id || "aurora")) ?? demoThemes[0];
     theme = {
@@ -86,23 +90,38 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
     const demoTheme = demoThemes.find((t) => t.id === slug);
     if (demoTheme) {
       theme = demoTheme;
-    } else {
-      // Fallback for custom user slug test
-      const base = demoThemes[0];
-      const parts = slug.split("-");
-      const bride = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "Sekar";
-      const groom = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "Dimas";
-
-      theme = {
-        ...base,
-        couple: {
-          ...base.couple,
-          bride,
-          groom,
-        },
-      };
     }
+    // If not found in DB and not a demo theme, return 404
   }
 
-  return <InvitationDemo theme={theme} guestName={guestName} weddingId={wedding?.id} slug={slug} />;
+  // If no theme found, return 404
+  if (!theme) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+        <div className="text-center">
+          <h1 className="font-display text-4xl font-bold text-foreground">404</h1>
+          <p className="mt-2 font-sans text-lg text-muted-foreground">Undangan tidak ditemukan</p>
+          <p className="mt-1 font-sans text-sm text-muted-foreground">
+            Slug &quot;{slug}&quot; tidak terdaftar atau telah dihapus.
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-block rounded-lg bg-brand-600 px-6 py-2 font-sans text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Kembali ke Beranda
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <InvitationDemo
+      theme={theme}
+      guestName={guestName}
+      weddingId={wedding?.id}
+      slug={slug}
+      galleryUrls={wedding?.gallery_urls}
+    />
+  );
 }

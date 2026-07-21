@@ -44,20 +44,35 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .slice(0, 60);
+    .slice(0, 30); // Shorter max length
+}
+
+function generateUniqueCode(): string {
+  // Generate short 4-char code: 2 digits + 2 chars
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 /**
  * Server Action — create a new wedding from the wizard.
  */
 export async function createWeddingAction(data: WeddingFormData) {
-  const baseSlug = slugify(`${data.brideName || "sekar"}-${data.groomName || "dimas"}`);
-  let slug = baseSlug || "sekar-dimas";
+  // Generate slug from first names only + unique code
+  const brideFirstName = (data.brideName || "bride").split(" ")[0];
+  const groomFirstName = (data.groomName || "groom").split(" ")[0];
+  const uniqueCode = generateUniqueCode();
+
+  const baseSlug = slugify(`${brideFirstName}-${groomFirstName}-${uniqueCode}`);
+  let slug = baseSlug || "undangan-" + uniqueCode;
 
   try {
     const supabase = await createClient();
     if (!supabase) {
-      return { success: true, weddingId: `wedding-${Date.now()}`, slug };
+      return { error: "Supabase tidak tersedia." };
     }
 
     const {
@@ -66,8 +81,19 @@ export async function createWeddingAction(data: WeddingFormData) {
 
     const userId = user?.id || "demo-user-123";
 
-    // Ensure slug uniqueness
+    // Ensure slug uniqueness (optional, since we already have unique code)
     let attempt = 0;
+    while (attempt < 3) {
+      const { data: existing } = await supabase
+        .from("weddings")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!existing) break;
+      attempt++;
+      slug = slugify(`${brideFirstName}-${groomFirstName}-${generateUniqueCode()}`);
+    }
     while (attempt < 10) {
       const { data: existing } = await supabase
         .from("weddings")

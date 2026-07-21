@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { demoThemes, type DemoTheme } from "./data";
-import { RsvpForm } from "@/features/invitation/rsvp-form";
+import { RsvpFormSimple } from "@/features/invitation/rsvp-form-simple";
 import { getTemplateMusic } from "@/config/template-music";
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -1640,8 +1640,12 @@ function TimelineSection({ theme }: { theme: DemoTheme }) {
 }
 
 /* SECTION: Photo Gallery with Lightbox */
-function GallerySection({ theme }: { theme: DemoTheme }) {
+function GallerySection({ theme, galleryUrls }: { theme: DemoTheme; galleryUrls?: string[] }) {
   const [selectedPhoto, setSelectedPhoto] = React.useState<number | null>(null);
+
+  // Use real gallery URLs if provided, otherwise use theme gradients
+  const photos = galleryUrls && galleryUrls.length > 0 ? galleryUrls : theme.gallery;
+  const isRealPhotos = galleryUrls && galleryUrls.length > 0;
 
   return (
     <section className="relative px-6 py-24" style={{ background: theme.palette.bgSecondary }}>
@@ -1667,30 +1671,48 @@ function GallerySection({ theme }: { theme: DemoTheme }) {
 
         <SectionDivider theme={theme} />
 
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6">
-          {theme.gallery.map((gradient, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08, duration: 0.7 }}
-              onClick={() => setSelectedPhoto(i)}
-              className="group relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border shadow-md transition-all hover:scale-105 hover:shadow-2xl"
-              style={{ borderColor: theme.palette.border }}
-            >
-              <div
-                className={`h-full w-full bg-gradient-to-br ${gradient} transition-transform duration-700 group-hover:scale-110`}
-              />
+        {photos.length === 0 ? (
+          <div className="mt-10 text-center">
+            <p className="font-sans text-xs text-muted-foreground">
+              Belum ada foto galeri. Upload foto untuk menampilkan di sini.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6">
+            {photos.map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08, duration: 0.7 }}
+                onClick={() => setSelectedPhoto(i)}
+                className="group relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border shadow-md transition-all hover:scale-105 hover:shadow-2xl"
+                style={{ borderColor: theme.palette.border }}
+              >
+                {isRealPhotos ? (
+                  // Real image from Supabase
+                  <img
+                    src={item}
+                    alt={`Foto ${i + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                ) : (
+                  // Demo gradient placeholder
+                  <div
+                    className={`h-full w-full bg-gradient-to-br ${item} transition-transform duration-700 group-hover:scale-110`}
+                  />
+                )}
 
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-                <div className="rounded-full bg-white/80 p-2 text-black shadow-lg backdrop-blur-md">
-                  <Sparkles size={16} />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="rounded-full bg-white/80 p-2 text-black shadow-lg backdrop-blur-md">
+                    <Sparkles size={16} />
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Lightbox Modal */}
@@ -1711,7 +1733,15 @@ function GallerySection({ theme }: { theme: DemoTheme }) {
               className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-3xl border shadow-2xl"
               style={{ borderColor: theme.palette.border }}
             >
-              <div className={`h-full w-full bg-gradient-to-br ${theme.gallery[selectedPhoto]}`} />
+              {isRealPhotos ? (
+                <img
+                  src={photos[selectedPhoto]}
+                  alt={`Foto ${selectedPhoto + 1}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className={`h-full w-full bg-gradient-to-br ${photos[selectedPhoto]}`} />
+              )}
               <button
                 onClick={() => setSelectedPhoto(null)}
                 className="absolute right-4 top-4 rounded-full bg-black/50 p-2.5 text-xs text-white transition-opacity hover:opacity-80"
@@ -1734,18 +1764,21 @@ export function InvitationDemo({
   guestName = "Tamu Undangan Spesial",
   weddingId,
   slug,
+  galleryUrls,
 }: {
   theme: DemoTheme;
   guestName?: string;
   weddingId?: string;
   slug?: string;
+  galleryUrls?: string[];
 }) {
   const [isOpened, setIsOpened] = React.useState(false);
+  const [guestId, setGuestId] = React.useState<string | undefined>(undefined);
 
   // Debug: log weddingId and slug
   React.useEffect(() => {
-    console.log("[InvitationDemo] weddingId:", weddingId, "slug:", slug);
-  }, [weddingId, slug]);
+    console.log("[InvitationDemo] weddingId:", weddingId, "slug:", slug, "guestName:", guestName);
+  }, [weddingId, slug, guestName]);
 
   return (
     <div
@@ -1755,8 +1788,8 @@ export function InvitationDemo({
       {/* Dynamic Theme Floating Petals Engine */}
       <FloatingPetalsSystem theme={theme} />
 
-      {/* Interactive Top Floating Control Bar */}
-      <DemoTopControlBar theme={theme} />
+      {/* Interactive Top Floating Control Bar — Only show for demo (no weddingId) */}
+      {!weddingId && <DemoTopControlBar theme={theme} />}
 
       {/* Opening Envelope Screen */}
       <CoverEnvelopeSection
@@ -1777,7 +1810,7 @@ export function InvitationDemo({
           <CoupleSection theme={theme} />
           <TimelineSection theme={theme} />
           <EventSection theme={theme} />
-          <GallerySection theme={theme} />
+          <GallerySection theme={theme} galleryUrls={galleryUrls} />
           <GiftSection theme={theme} />
           <section
             className="relative px-6 py-24"
@@ -1796,7 +1829,7 @@ export function InvitationDemo({
               >
                 Konfirmasi kehadiran Anda dan berikan doa terbaik untuk mempelai.
               </p>
-              <RsvpForm theme={theme} weddingId={weddingId} slug={slug || ""} />
+              <RsvpFormSimple theme={theme} weddingId={weddingId} guestName={guestName} />
             </div>
           </section>
 

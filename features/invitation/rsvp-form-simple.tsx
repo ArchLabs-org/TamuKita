@@ -4,33 +4,62 @@ import * as React from "react";
 import { Send, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveGuestRsvpAction } from "@/lib/actions/guest-actions";
+import { updateGuestRsvpAction, findGuestByNameAction } from "@/lib/actions/guest-actions";
 import type { DemoTheme } from "@/features/demo/data";
 
-export interface RsvpFormProps {
+export interface RsvpFormSimpleProps {
   theme: DemoTheme;
   weddingId?: string;
-  slug: string;
   guestName?: string; // passed from ?to= param
+  guestId?: string; // guest ID from pre-populated list
 }
 
-export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
-  const [name, setName] = React.useState(guestName || "");
-  const [email, setEmail] = React.useState("");
+export function RsvpFormSimple({
+  theme,
+  weddingId,
+  guestName,
+  guestId: initialGuestId,
+}: RsvpFormSimpleProps) {
   const [message, setMessage] = React.useState("");
-  const [status, setStatus] = React.useState("attending");
+  const [status, setStatus] = React.useState<"attending" | "maybe" | "not_attending">("attending");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [guestId, setGuestId] = React.useState<string | undefined>(initialGuestId);
+  const [loading, setLoading] = React.useState(!initialGuestId && !!weddingId && !!guestName);
 
-  // Debug: log props
+  // If guestName and weddingId provided but no guestId, find the guest
   React.useEffect(() => {
-    console.log("[RsvpForm] weddingId:", weddingId, "slug:", slug, "guestName:", guestName);
-  }, [weddingId, slug, guestName]);
+    if (initialGuestId) {
+      setGuestId(initialGuestId);
+      setLoading(false);
+      return;
+    }
 
-  // Demo wishes (fallback)
+    if (!weddingId || !guestName) {
+      setLoading(false);
+      return;
+    }
+
+    const findGuest = async () => {
+      setLoading(true);
+      const result = await findGuestByNameAction(weddingId, guestName);
+      setLoading(false);
+
+      if ("error" in result && result.error) {
+        console.warn("[RsvpFormSimple] Guest lookup failed:", result.error);
+        setError(result.error);
+        return;
+      }
+
+      setGuestId(result.guestId);
+    };
+
+    findGuest();
+  }, [weddingId, guestName, initialGuestId]);
+
+  // Demo wishes for display
   const [wishes, setWishes] = React.useState([
     { name: "Budi Santoso", status: "attending", message: "Selamat atas pernikahan kalian!" },
     { name: "Siti Nurhaliza", status: "attending", message: "Semoga bahagia selamanya" },
@@ -38,47 +67,37 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[RsvpForm] handleSubmit called", { name, message, weddingId });
 
-    if (!name || !message) {
-      setError("Nama dan pesan tidak boleh kosong");
-      toast.error("Nama dan pesan harus diisi");
+    if (!message.trim()) {
+      setError("Pesan tidak boleh kosong");
+      toast.error("Silakan tulis pesan Anda");
+      return;
+    }
+
+    if (!guestName) {
+      setError("Nama tamu tidak ditemukan");
+      toast.error("Nama Anda tidak ditemukan di daftar tamu");
+      return;
+    }
+
+    if (!guestId) {
+      setError("ID Tamu tidak valid");
+      toast.error("Terjadi kesalahan, silakan coba lagi");
       return;
     }
 
     setSubmitting(true);
     setError(null);
 
-    // If no wedding ID, show error
-    if (!weddingId) {
-      const errMsg = "ID Undangan tidak ditemukan. Tidak bisa menyimpan RSVP.";
-      setError(errMsg);
-      toast.error(errMsg);
-      setSubmitting(false);
-      return;
-    }
-
-    console.log("[RsvpForm] Sending RSVP to server...", {
-      weddingId,
-      name,
-      email,
-      status,
-      message,
-    });
-
     // Show loading toast
     const toastId = toast.loading("Menyimpan RSVP...");
 
-    // Save to database
-    const result = await saveGuestRsvpAction({
-      weddingId,
-      name,
-      email: email || undefined,
-      rsvpStatus: (status as "attending" | "maybe" | "not_attending") || "pending",
+    // Update existing guest
+    const result = await updateGuestRsvpAction({
+      guestId,
+      status,
       notes: message,
     });
-
-    console.log("[RsvpForm] Server response:", result);
 
     setSubmitting(false);
 
@@ -89,96 +108,79 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
     }
 
     // Success
-    setName("");
-    setEmail("");
     setMessage("");
-    setStatus("attending");
     setSubmitted(true);
 
     toast.success("RSVP berhasil disimpan! Terima kasih 🎉", { id: toastId });
 
     setTimeout(() => setSubmitted(false), 3000);
 
-    // Add to demo wishes for immediate feedback
-    setWishes((prev) => [
-      ...prev,
-      { name, status: status as "attending" | "maybe" | "not_attending", message },
-    ]);
+    // Add to demo wishes for display
+    setWishes((prev) => [...prev, { name: guestName, status, message }]);
   };
 
   return (
     <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
-      {/* Form */}
+      {/* RSVP Form */}
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-4 rounded-3xl border p-6 text-left shadow-xl"
         style={{ borderColor: theme.palette.border, background: theme.palette.card }}
       >
-        <h3 className="font-display text-sm font-semibold" style={{ color: theme.palette.text }}>
-          Konfirmasi Kehadiran
-        </h3>
-
-        <div className="space-y-2">
-          <Label className="text-xs" style={{ color: theme.palette.textMuted }}>
-            Nama Lengkap
-          </Label>
-          <Input
-            type="text"
-            placeholder="Nama Anda"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={submitting}
-            className="text-xs"
-          />
+        <div>
+          <h3 className="font-display text-sm font-semibold" style={{ color: theme.palette.text }}>
+            Konfirmasi Kehadiran
+          </h3>
+          <p className="mt-1 font-sans text-xs" style={{ color: theme.palette.textMuted }}>
+            Halo {guestName || "Tamu Spesial"}, silakan konfirmasi kehadiran Anda
+          </p>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs" style={{ color: theme.palette.textMuted }}>
-            Email (Opsional)
-          </Label>
-          <Input
-            type="email"
-            placeholder="email@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitting}
-            className="text-xs"
-          />
-        </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+            Mencari nama Anda di daftar tamu...
+          </div>
+        )}
 
+        {/* Error or Not Found State */}
+        {!loading && error && (
+          <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{error}</div>
+        )}
+
+        {/* Status Selection */}
         <div className="space-y-2">
           <Label className="text-xs" style={{ color: theme.palette.textMuted }}>
             Status Kehadiran
           </Label>
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            disabled={submitting}
+            onChange={(e) => setStatus(e.target.value as any)}
+            disabled={submitting || loading || !!error}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2"
             style={{ "--tw-ring-color": theme.palette.accent } as React.CSSProperties}
           >
-            <option value="attending">Akan Hadir</option>
-            <option value="maybe">Mungkin Hadir</option>
-            <option value="not_attending">Tidak Bisa Hadir</option>
+            <option value="attending">✓ Akan Hadir</option>
+            <option value="maybe">? Mungkin Hadir</option>
+            <option value="not_attending">✗ Tidak Bisa Hadir</option>
           </select>
         </div>
 
+        {/* Message */}
         <div className="space-y-2">
           <Label className="text-xs" style={{ color: theme.palette.textMuted }}>
-            Doa &amp; Ucapan
+            Pesan & Ucapan
           </Label>
           <textarea
             placeholder="Tulis doa dan ucapan terbaik Anda..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            disabled={submitting}
+            disabled={submitting || loading || !!error}
             rows={4}
             className="w-full rounded-lg border border-input bg-background p-2 text-xs outline-none focus:ring-2"
             style={{ "--tw-ring-color": theme.palette.accent } as React.CSSProperties}
           />
         </div>
-
-        {error && <div className="rounded-lg bg-red-50 p-2 text-xs text-red-600">{error}</div>}
 
         {submitted && (
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-600">
@@ -188,7 +190,7 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
 
         <Button
           type="submit"
-          disabled={submitting || submitted}
+          disabled={submitting || submitted || loading || !!error || !guestId}
           className="gap-1.5 text-xs"
           style={{
             background: submitted ? "#10b981" : theme.palette.accent,
@@ -204,7 +206,7 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
             </>
           ) : (
             <>
-              <Send size={13} className="mr-2" /> Kirim Ucapan
+              <Send size={13} /> Kirim Ucapan
             </>
           )}
         </Button>
@@ -230,7 +232,7 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
                 className="rounded-lg border border-border/20 p-3"
                 style={{ background: theme.palette.bg }}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold" style={{ color: theme.palette.text }}>
                     {wish.name}
                   </span>
@@ -259,7 +261,7 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
                   </span>
                 </div>
                 <p
-                  className="mt-1.5 text-[11px] leading-relaxed"
+                  className="text-[11px] leading-relaxed"
                   style={{ color: theme.palette.textMuted }}
                 >
                   {wish.message}

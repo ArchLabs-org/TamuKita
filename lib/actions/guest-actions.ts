@@ -9,8 +9,58 @@ export interface GuestRsvpData {
   name: string;
   email?: string;
   phone?: string;
-  rsvpStatus: "pending" | "attending" | "not_attending" | "maybe";
+  rsvpStatus?: "pending" | "attending" | "not_attending" | "maybe";
   notes?: string;
+}
+
+export interface AddGuestData {
+  weddingId: string;
+  name: string;
+  phone?: string;
+  notes?: string;
+}
+
+export interface UpdateGuestRsvpData {
+  guestId: string;
+  status: "pending" | "attending" | "not_attending" | "maybe";
+  notes?: string;
+}
+
+/**
+ * Server Action — add single guest to pre-populated list
+ */
+export async function addGuestAction(data: AddGuestData) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { error: "Supabase tidak tersedia." };
+    }
+
+    const { data: guest, error } = await supabase
+      .from("guests")
+      .insert({
+        wedding_id: data.weddingId,
+        name: data.name,
+        phone: data.phone || null,
+        notes: data.notes || null,
+        rsvp_status: "pending",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[addGuestAction] Insert failed:", error.message);
+      return { error: `Gagal menambah tamu: ${error.message}` };
+    }
+
+    revalidatePath(ROUTES.guests);
+
+    return { success: true, guest };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[addGuestAction] Catch error:", errorMsg);
+    return { error: `Error: ${errorMsg}` };
+  }
 }
 
 /**
@@ -30,7 +80,7 @@ export async function saveGuestRsvpAction(data: GuestRsvpData) {
         name: data.name,
         email: data.email || null,
         phone: data.phone || null,
-        rsvp_status: data.rsvpStatus,
+        rsvp_status: data.rsvpStatus || "pending",
         notes: data.notes || null,
       })
       .select()
@@ -76,6 +126,75 @@ export async function getWeddingGuestsAction(weddingId: string) {
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";
     console.error("[getWeddingGuestsAction] Catch error:", errorMsg);
+    return { error: `Error: ${errorMsg}` };
+  }
+}
+
+/**
+ * Server Action — update guest RSVP status and notes
+ */
+export async function updateGuestRsvpAction(data: UpdateGuestRsvpData) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { error: "Supabase tidak tersedia." };
+    }
+
+    const { data: guest, error } = await supabase
+      .from("guests")
+      .update({
+        rsvp_status: data.status,
+        notes: data.notes || null,
+      })
+      .eq("id", data.guestId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[updateGuestRsvpAction] Update failed:", error.message);
+      return { error: `Gagal mengupdate RSVP: ${error.message}` };
+    }
+
+    revalidatePath(ROUTES.guests);
+
+    return { success: true, guest };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[updateGuestRsvpAction] Catch error:", errorMsg);
+    return { error: `Error: ${errorMsg}` };
+  }
+}
+
+/**
+ * Server Action — find guest by wedding ID and name
+ */
+export async function findGuestByNameAction(weddingId: string, name: string) {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      return { error: "Supabase tidak tersedia." };
+    }
+
+    const { data: guest, error } = await supabase
+      .from("guests")
+      .select("id")
+      .eq("wedding_id", weddingId)
+      .eq("name", name)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[findGuestByNameAction] Query failed:", error.message);
+      return { error: `Gagal mencari tamu: ${error.message}` };
+    }
+
+    if (!guest) {
+      return { error: "Tamu tidak ditemukan di daftar" };
+    }
+
+    return { success: true, guestId: guest.id };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[findGuestByNameAction] Catch error:", errorMsg);
     return { error: `Error: ${errorMsg}` };
   }
 }
