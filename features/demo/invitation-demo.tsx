@@ -24,22 +24,32 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { demoThemes, type DemoTheme } from "./data";
 import { RsvpFormSimple } from "@/features/invitation/rsvp-form-simple";
-import { getTemplateMusic } from "@/config/template-music";
+import { getTemplateMusic, type TemplateMusic } from "@/config/template-music";
 
 /* ════════════════════════════════════════════════════════════════════════════
    1. TEMPLATE-SPECIFIC AUDIO PLAYER (Strict Unique Audio Source per Theme)
 ════════════════════════════════════════════════════════════════════════════ */
-function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: boolean }) {
-  const musicConfig = getTemplateMusic(theme.id);
+function MusicPlayerWidget({
+  theme,
+  isOpened,
+  musicConfig,
+}: {
+  theme: DemoTheme;
+  isOpened: boolean;
+  musicConfig?: TemplateMusic;
+}) {
+  const musicToUse = musicConfig || getTemplateMusic(theme.id);
   const [playing, setPlaying] = React.useState(false);
   const [audioExists, setAudioExists] = React.useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true); // Add loading state
+  const [musicFile, setMusicFile] = React.useState(musicToUse.file);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Check if unique audio file exists for this template
+  // Check if audio file exists (custom music via proxy, or template music)
   React.useEffect(() => {
     let isMounted = true;
 
-    // Destroy previous audio instance completely before loading the next template's audio
+    // Destroy previous audio instance completely before loading new one
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -48,30 +58,46 @@ function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: bo
     }
     setPlaying(false);
     setAudioExists(null);
+    setIsLoading(true); // Start loading
+    setMusicFile(musicToUse.file);
 
-    fetch(musicConfig.file, { method: "HEAD" })
-      .then((res) => {
-        if (!isMounted) return;
-        if (res.ok) {
+    console.log(`[MusicPlayer] Checking audio file: ${musicToUse.file}`);
+
+    // Try to load and check if file is accessible
+    const testAudio = new Audio(musicToUse.file);
+    testAudio.addEventListener(
+      "canplay",
+      () => {
+        if (isMounted) {
+          console.log(`[MusicPlayer] Audio ready: ${musicToUse.file}`);
           setAudioExists(true);
-        } else {
-          setAudioExists(false);
-          if (process.env.NODE_ENV === "development") {
-            console.warn(
-              `[TamuKita] Audio file not found for template "${theme.id}": ${musicConfig.file}`,
-            );
+          setIsLoading(false); // Finish loading
+        }
+      },
+      { once: true },
+    );
+
+    testAudio.addEventListener(
+      "error",
+      (e) => {
+        if (isMounted) {
+          console.warn(`[MusicPlayer] Audio load error: ${musicToUse.file}`, e);
+          // Fallback to template if custom music fails
+          if (musicConfig && musicConfig !== getTemplateMusic(theme.id)) {
+            const templateMusic = getTemplateMusic(theme.id);
+            console.log(`[MusicPlayer] Falling back to template: ${templateMusic.file}`);
+            setMusicFile(templateMusic.file);
+            setAudioExists(true); // Assume template music exists
+          } else {
+            setAudioExists(false);
           }
+          setIsLoading(false); // Finish loading on error
         }
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setAudioExists(false);
-        if (process.env.NODE_ENV === "development") {
-          console.warn(
-            `[TamuKita] Audio file not found for template "${theme.id}": ${musicConfig.file}`,
-          );
-        }
-      });
+      },
+      { once: true },
+    );
+
+    testAudio.load();
 
     return () => {
       isMounted = false;
@@ -82,23 +108,41 @@ function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: bo
         audioRef.current = null;
       }
     };
-  }, [theme.id, musicConfig.file]);
+  }, [theme.id, musicToUse, musicConfig]);
 
   // Handle auto-play when invitation cover is opened
   React.useEffect(
     () => {
+      // Auto-play when: invitation is opened AND audio is ready (not loading/null) AND not already playing
       if (isOpened && audioExists === true && !playing) {
-        const audio = new Audio(musicConfig.file);
-        audio.loop = true;
-        audioRef.current = audio;
-        audio
-          .play()
-          .then(() => setPlaying(true))
-          .catch(() => setPlaying(false));
+        console.log(`[MusicPlayer] Auto-playing music: ${musicFile}`);
+
+        // Small delay to ensure audio element is ready
+        const timer = setTimeout(() => {
+          const audio = new Audio(musicFile);
+          audio.loop = true;
+          audioRef.current = audio;
+
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log(`[MusicPlayer] Auto-play successful`);
+                setPlaying(true);
+              })
+              .catch((err) => {
+                console.warn(`[MusicPlayer] Auto-play blocked (browser policy):`, err.message);
+                // Browser autoplay policy blocks this, that's ok
+                setPlaying(false);
+              });
+          }
+        }, 100);
+
+        return () => clearTimeout(timer);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isOpened, audioExists, musicConfig.file],
+    [isOpened, audioExists, musicFile],
   );
 
   const toggleMusic = () => {
@@ -109,7 +153,7 @@ function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: bo
       setPlaying(false);
     } else {
       if (!audioRef.current) {
-        audioRef.current = new Audio(musicConfig.file);
+        audioRef.current = new Audio(musicFile);
         audioRef.current.loop = true;
       }
       audioRef.current
@@ -153,11 +197,11 @@ function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: bo
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 1 }}
         onClick={toggleMusic}
-        disabled={!audioExists}
-        whileHover={audioExists ? { scale: 1.06 } : {}}
-        whileTap={audioExists ? { scale: 0.94 } : {}}
+        disabled={!audioExists || isLoading}
+        whileHover={audioExists && !isLoading ? { scale: 1.06 } : {}}
+        whileTap={audioExists && !isLoading ? { scale: 0.94 } : {}}
         className={`group relative flex items-center gap-3 rounded-full border px-4 py-2.5 shadow-xl backdrop-blur-xl transition-all ${
-          !audioExists ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+          !audioExists || isLoading ? "cursor-not-allowed opacity-75" : "cursor-pointer"
         }`}
         style={{
           background: `${theme.palette.card}f0`,
@@ -209,14 +253,24 @@ function MusicPlayerWidget({ theme, isOpened }: { theme: DemoTheme; isOpened: bo
           className="font-sans text-[10px] font-medium uppercase tracking-widest"
           style={{ color: playing ? theme.palette.accent : theme.palette.textMuted }}
         >
-          {audioExists === false
-            ? "Audio belum tersedia."
-            : playing
-              ? `${musicConfig.title} — ${musicConfig.artist}`
-              : "Putar Musik"}
+          {isLoading
+            ? "Memuat Musik..."
+            : audioExists === false
+              ? "Musik belum siap"
+              : playing
+                ? `${musicToUse.title} — ${musicToUse.artist}`
+                : "Putar Musik"}
         </span>
 
-        {playing ? (
+        {isLoading ? (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="h-4 w-4"
+          >
+            <VolumeX size={13} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
+          </motion.div>
+        ) : playing ? (
           <Volume2 size={13} style={{ color: theme.palette.accent }} aria-hidden="true" />
         ) : (
           <VolumeX size={13} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
@@ -849,7 +903,15 @@ function QuoteSection({ theme }: { theme: DemoTheme }) {
 }
 
 /* SECTION: Mempelai (Couple Profiles with Soft Vignette & Circle Blur Blend) */
-function CoupleSection({ theme }: { theme: DemoTheme }) {
+function CoupleSection({
+  theme,
+  bridePhotoUrl,
+  groomPhotoUrl,
+}: {
+  theme: DemoTheme;
+  bridePhotoUrl?: string;
+  groomPhotoUrl?: string;
+}) {
   return (
     <section
       className="relative overflow-hidden px-6 py-24"
@@ -889,20 +951,28 @@ function CoupleSection({ theme }: { theme: DemoTheme }) {
           >
             {/* Soft Circle Blur & Vignette Frame */}
             <div
-              className="relative mb-5 flex h-36 w-36 items-center justify-center rounded-full border p-1.5 shadow-2xl"
+              className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
               style={{ borderColor: theme.palette.accent }}
             >
-              <div
-                className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-                style={{ background: theme.palette.bgSecondary }}
-              >
-                <span
-                  className="font-display text-4xl font-light"
-                  style={{ color: theme.palette.accent }}
+              {bridePhotoUrl ? (
+                <img
+                  src={bridePhotoUrl}
+                  alt={theme.couple.bride}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div
+                  className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                  style={{ background: theme.palette.bgSecondary }}
                 >
-                  {theme.couple.bride[0]}
-                </span>
-              </div>
+                  <span
+                    className="font-display text-4xl font-light"
+                    style={{ color: theme.palette.accent }}
+                  >
+                    {theme.couple.bride[0]}
+                  </span>
+                </div>
+              )}
             </div>
 
             <h3
@@ -930,20 +1000,28 @@ function CoupleSection({ theme }: { theme: DemoTheme }) {
           >
             {/* Soft Circle Blur & Vignette Frame */}
             <div
-              className="relative mb-5 flex h-36 w-36 items-center justify-center rounded-full border p-1.5 shadow-2xl"
+              className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
               style={{ borderColor: theme.palette.accent }}
             >
-              <div
-                className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-                style={{ background: theme.palette.bgSecondary }}
-              >
-                <span
-                  className="font-display text-4xl font-light"
-                  style={{ color: theme.palette.accent }}
+              {groomPhotoUrl ? (
+                <img
+                  src={groomPhotoUrl}
+                  alt={theme.couple.groom}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div
+                  className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                  style={{ background: theme.palette.bgSecondary }}
                 >
-                  {theme.couple.groom[0]}
-                </span>
-              </div>
+                  <span
+                    className="font-display text-4xl font-light"
+                    style={{ color: theme.palette.accent }}
+                  >
+                    {theme.couple.groom[0]}
+                  </span>
+                </div>
+              )}
             </div>
 
             <h3
@@ -1647,6 +1725,13 @@ function GallerySection({ theme, galleryUrls }: { theme: DemoTheme; galleryUrls?
   const photos = galleryUrls && galleryUrls.length > 0 ? galleryUrls : theme.gallery;
   const isRealPhotos = galleryUrls && galleryUrls.length > 0;
 
+  // Debug logging
+  if (typeof window !== "undefined") {
+    console.log("[GallerySection] galleryUrls:", galleryUrls);
+    console.log("[GallerySection] isRealPhotos:", isRealPhotos);
+    console.log("[GallerySection] photos length:", photos.length);
+  }
+
   return (
     <section className="relative px-6 py-24" style={{ background: theme.palette.bgSecondary }}>
       <div className="mx-auto max-w-4xl text-center">
@@ -1765,12 +1850,20 @@ export function InvitationDemo({
   weddingId,
   slug,
   galleryUrls,
+  bridePhotoUrl,
+  groomPhotoUrl,
+  coverPhotoUrl,
+  musicConfig,
 }: {
   theme: DemoTheme;
   guestName?: string;
   weddingId?: string;
   slug?: string;
   galleryUrls?: string[];
+  bridePhotoUrl?: string;
+  groomPhotoUrl?: string;
+  coverPhotoUrl?: string;
+  musicConfig?: TemplateMusic;
 }) {
   const [isOpened, setIsOpened] = React.useState(false);
   const [guestId, setGuestId] = React.useState<string | undefined>(undefined);
@@ -1800,14 +1893,18 @@ export function InvitationDemo({
       />
 
       {/* Live Audio Visualizer Widget */}
-      <MusicPlayerWidget theme={theme} isOpened={isOpened} />
+      <MusicPlayerWidget theme={theme} isOpened={isOpened} musicConfig={musicConfig} />
 
       {/* Main Invitation Sections */}
       {isOpened && (
         <main className="relative z-20">
           <HeroCoverSection theme={theme} />
           <QuoteSection theme={theme} />
-          <CoupleSection theme={theme} />
+          <CoupleSection
+            theme={theme}
+            bridePhotoUrl={bridePhotoUrl}
+            groomPhotoUrl={groomPhotoUrl}
+          />
           <TimelineSection theme={theme} />
           <EventSection theme={theme} />
           <GallerySection theme={theme} galleryUrls={galleryUrls} />

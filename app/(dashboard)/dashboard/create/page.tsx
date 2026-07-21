@@ -13,7 +13,6 @@ import {
   ArrowRight,
   ArrowLeft,
   ChevronRight,
-  Music,
   Camera,
   Loader2,
   Plus,
@@ -30,8 +29,6 @@ import { ROUTES } from "@/constants/routes";
 import { createWeddingAction } from "@/lib/actions/wedding-actions";
 import { PhotoUploader } from "@/features/dashboard/photo-uploader";
 import { GalleryUploader } from "@/features/dashboard/gallery-uploader";
-import { TEMPLATE_MUSIC } from "@/config/template-music";
-import { uploadPhotoAction } from "@/lib/actions/upload-actions";
 
 const WIZARD_STEPS = [
   { id: 1, name: "Mempelai", icon: Heart },
@@ -54,6 +51,7 @@ export default function CreateWeddingWizardPage() {
   // Custom audio upload state
   const [uploadingAudio, setUploadingAudio] = React.useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = React.useState(false);
+  const [audioPreviewUrl, setAudioPreviewUrl] = React.useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const [formData, setFormData] = React.useState({
@@ -90,7 +88,8 @@ export default function CreateWeddingWizardPage() {
     groomPhotoUrl: null as string | null,
     coverPhotoUrl: null as string | null,
     galleryUrls: [] as string[],
-    musicType: "template" as "template" | "custom",
+    musicType: "custom" as "template" | "custom",
+    selectedMusicIndex: 0, // Default to first song in library
     musicCustomUrl: "",
     gifts: [{ bank: "BCA", account: "", name: "" }] as GiftItem[],
   });
@@ -133,17 +132,31 @@ export default function CreateWeddingWizardPage() {
     fd.append("file", file);
 
     try {
-      const result = await uploadPhotoAction(fd, "music");
-      if ("error" in result) {
-        setServerError(result.error);
+      console.log("[CreateWizard] Uploading music file via API route:", file.name, file.size);
+
+      // Use direct API route to bypass Server Action 1MB limit
+      const response = await fetch("/api/upload/music", {
+        method: "POST",
+        body: fd,
+      });
+
+      const result = await response.json();
+      console.log("[CreateWizard] Music upload result:", result);
+
+      if (!response.ok || result.error) {
+        console.error("[CreateWizard] Music upload error:", result.error);
+        setServerError(result.error || "Upload gagal");
       } else {
+        console.log("[CreateWizard] Music uploaded successfully, URL:", result.url);
         setFormData((prev) => ({
           ...prev,
           musicType: "custom",
           musicCustomUrl: result.url,
         }));
       }
-    } catch {
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error("[CreateWizard] Music upload exception:", errMsg);
       setServerError("Gagal mengunggah file musik MP3.");
     } finally {
       setUploadingAudio(false);
@@ -153,13 +166,15 @@ export default function CreateWeddingWizardPage() {
   const toggleAudioPreview = (url: string) => {
     if (!audioRef.current) {
       audioRef.current = new Audio(url);
+      setAudioPreviewUrl(url);
     }
 
-    if (isPlayingPreview) {
+    if (isPlayingPreview && audioPreviewUrl === url) {
       audioRef.current.pause();
       setIsPlayingPreview(false);
     } else {
       audioRef.current.src = url;
+      setAudioPreviewUrl(url);
       audioRef.current.play().catch(() => {});
       setIsPlayingPreview(true);
     }
@@ -168,6 +183,18 @@ export default function CreateWeddingWizardPage() {
   const handlePublish = async () => {
     setSaving(true);
     setServerError(null);
+
+    // Debug: log form data before submitting
+    console.log("[CreateWizard] Publishing wedding with data:", {
+      musicType: formData.musicType,
+      musicCustomUrl: formData.musicCustomUrl,
+      selectedMusicIndex: formData.selectedMusicIndex,
+      hasMusic: !!formData.musicCustomUrl,
+    });
+
+    // Determine final music URL - only custom upload supported
+    const finalMusicUrl = formData.musicCustomUrl || undefined;
+
     const result = await createWeddingAction({
       brideName: formData.brideName,
       brideParents: formData.brideParents,
@@ -193,7 +220,7 @@ export default function CreateWeddingWizardPage() {
       coverPhotoUrl: formData.coverPhotoUrl ?? undefined,
       galleryUrls: formData.galleryUrls,
       musicType: formData.musicType,
-      musicCustomUrl: formData.musicCustomUrl,
+      musicCustomUrl: finalMusicUrl ?? undefined,
       gifts: formData.gifts.filter((g) => g.bank && g.account),
     });
     setSaving(false);
@@ -210,7 +237,6 @@ export default function CreateWeddingWizardPage() {
   };
 
   const selectedTheme = demoThemes.find((t) => t.id === formData.themeId) ?? demoThemes[0];
-  const activeTemplateMusic = TEMPLATE_MUSIC[formData.themeId] || TEMPLATE_MUSIC["aurora"];
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
@@ -706,26 +732,7 @@ export default function CreateWeddingWizardPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div
-                  onClick={() => set("musicType", "template")}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                    formData.musicType === "template"
-                      ? "border-brand-600 bg-brand-50/20 ring-2 ring-brand-500"
-                      : "border-border hover:bg-muted/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-sans text-xs font-bold text-foreground">
-                      Preset Musik Tema ({activeTemplateMusic.title})
-                    </span>
-                    <Music size={16} className="text-brand-600" />
-                  </div>
-                  <p className="mt-1 font-sans text-[11px] text-muted-foreground">
-                    Musik piano instrumental khusus tema {selectedTheme.name}.
-                  </p>
-                </div>
-
+              <div className="grid gap-3 sm:grid-cols-1">
                 <div
                   onClick={() => set("musicType", "custom")}
                   className={`cursor-pointer rounded-2xl border p-4 transition-all ${
@@ -736,12 +743,12 @@ export default function CreateWeddingWizardPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-sans text-xs font-bold text-foreground">
-                      Upload File MP3 Sendiri
+                      Upload File MP3 Musik Custom
                     </span>
                     <Upload size={16} className="text-brand-600" />
                   </div>
                   <p className="mt-1 font-sans text-[11px] text-muted-foreground">
-                    Unggah lagu MP3 favorit kalian (Maks 20MB).
+                    Unggah lagu MP3 favorit kalian (Maks 5MB). *Diperlukan paket berbayar
                   </p>
                 </div>
               </div>
@@ -763,11 +770,11 @@ export default function CreateWeddingWizardPage() {
                   </div>
 
                   {formData.musicCustomUrl && (
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                       <div className="flex items-center gap-2">
-                        <Music size={16} className="text-brand-600" />
-                        <span className="max-w-xs truncate font-mono text-xs text-foreground">
-                          {formData.musicCustomUrl}
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                        <span className="text-xs font-medium text-emerald-700">
+                          Musik berhasil diupload
                         </span>
                       </div>
                       <Button

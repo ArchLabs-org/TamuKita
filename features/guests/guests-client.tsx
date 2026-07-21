@@ -55,11 +55,34 @@ export function GuestsClient({
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [newGuestName, setNewGuestName] = React.useState("");
   const [newGuestPhone, setNewGuestPhone] = React.useState("");
+  const [userPlan, setUserPlan] = React.useState<string>("free");
+  const [showBulkWaModal, setShowBulkWaModal] = React.useState(false);
+  const [isSendingBulk, setIsSendingBulk] = React.useState(false);
+  const [bulkProgress, setBulkProgress] = React.useState({ sent: 0, total: 0 });
 
   const weddingSlug = initialWedding?.slug || "sekar-dimas";
   const brideGroom = initialWedding
     ? `${initialWedding.bride_name} & ${initialWedding.groom_name}`
     : "Pernikahan TamuKita";
+
+  // Fetch user plan from session/profile
+  React.useEffect(() => {
+    const fetchUserPlan = async () => {
+      try {
+        const response = await fetch("/api/auth/session");
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.user?.plan) {
+            setUserPlan(data.user.plan);
+            console.log("[GuestsClient] User plan fetched:", data.user.plan);
+          }
+        }
+      } catch (err) {
+        console.error("[GuestsClient] Error fetching user plan:", err);
+      }
+    };
+    fetchUserPlan();
+  }, []);
 
   // Export CSV Template
   const handleDownloadTemplate = () => {
@@ -174,6 +197,38 @@ export function GuestsClient({
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
   };
 
+  const handleBulkWhatsAppSend = async () => {
+    // Get guests with phone numbers
+    const guestsWithPhone = guests.filter((g) => g.phone);
+
+    if (guestsWithPhone.length === 0) {
+      toast.error("Tidak ada guest dengan nomor WhatsApp");
+      return;
+    }
+
+    setIsSendingBulk(true);
+    setBulkProgress({ sent: 0, total: guestsWithPhone.length });
+
+    // Send to each guest with delay
+    for (let i = 0; i < guestsWithPhone.length; i++) {
+      const guest = guestsWithPhone[i];
+      const waLink = getWaMessageLink(guest.name, guest.phone);
+
+      // Open WhatsApp in new window
+      window.open(waLink, "_blank", "width=600,height=600");
+
+      // Update progress
+      setBulkProgress({ sent: i + 1, total: guestsWithPhone.length });
+
+      // Delay between opens (1.5 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+
+    setIsSendingBulk(false);
+    setShowBulkWaModal(false);
+    toast.success(`Berhasil membuka ${guestsWithPhone.length} chat WhatsApp!`);
+  };
+
   return (
     <div className="p-6">
       {/* Header Actions */}
@@ -231,35 +286,70 @@ export function GuestsClient({
       </div>
 
       {/* WhatsApp Auto-Send Pro Banner Teaser */}
-      <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 via-warm-50 to-gold-50 p-4 shadow-sm sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-white shadow-md">
-            <Send size={18} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-sans text-xs font-bold text-foreground">
-                Kirim Undangan Otomatis via WhatsApp (Auto-WA)
-              </span>
-              <span className="shadow-xs flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                <Crown size={10} /> FITUR PRO
-              </span>
+      {(userPlan === "free" || userPlan === "starter") && (
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 via-warm-50 to-gold-50 p-4 shadow-sm sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-white shadow-md">
+              <Send size={18} />
             </div>
-            <p className="mt-0.5 font-sans text-xs text-muted-foreground">
-              Kirim link undangan kustom berstempel nama tamu ke 500+ nomor WhatsApp sekaligus
-              secara otomatis!
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-sans text-xs font-bold text-foreground">
+                  Kirim Undangan Otomatis via WhatsApp (Auto-WA)
+                </span>
+                <span className="shadow-xs flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  <Crown size={10} /> FITUR PRO
+                </span>
+              </div>
+              <p className="mt-0.5 font-sans text-xs text-muted-foreground">
+                Kirim link undangan kustom berstempel nama tamu ke 500+ nomor WhatsApp sekaligus
+                secara otomatis!
+              </p>
+            </div>
           </div>
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() => setShowProModal(true)}
+            className="rounded-full text-xs font-semibold shadow-brand-sm"
+          >
+            Aktifkan Fitur Auto-WA
+          </Button>
         </div>
-        <Button
-          variant="brand"
-          size="sm"
-          onClick={() => setShowProModal(true)}
-          className="rounded-full text-xs font-semibold shadow-brand-sm"
-        >
-          Aktifkan Fitur Auto-WA
-        </Button>
-      </div>
+      )}
+
+      {/* WhatsApp Bulk Send Banner - For Professional/Enterprise */}
+      {(userPlan === "professional" || userPlan === "enterprise") && (
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 p-4 shadow-sm sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md">
+              <Send size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-sans text-xs font-bold text-foreground">
+                  Kirim Semua Undangan via WhatsApp
+                </span>
+                <span className="shadow-xs flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  <Check size={10} /> AKTIF
+                </span>
+              </div>
+              <p className="mt-0.5 font-sans text-xs text-muted-foreground">
+                Kirim link undangan ke semua tamu sekaligus — WhatsApp akan membuka satu per satu.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() => setShowBulkWaModal(true)}
+            disabled={guests.filter((g) => g.phone).length === 0}
+            className="rounded-full text-xs font-semibold shadow-brand-sm"
+          >
+            <Send size={12} /> Kirim Sekarang
+          </Button>
+        </div>
+      )}
 
       {guests.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
@@ -349,15 +439,27 @@ export function GuestsClient({
                       </a>
                     ) : null}
 
-                    {/* Auto-WA Pro Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowProModal(true)}
-                      className="h-8 gap-1 rounded-full border-emerald-300 bg-emerald-50/50 text-[11px] text-emerald-700 hover:bg-emerald-100"
-                    >
-                      <Sparkles size={11} className="text-emerald-500" /> Auto-WA
-                    </Button>
+                    {/* Auto-WA Pro Button - Only for pro plans */}
+                    {userPlan === "professional" || userPlan === "enterprise" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="h-8 gap-1 rounded-full border-emerald-300 bg-emerald-100 text-[11px] text-emerald-700"
+                        title="Fitur Auto-WA sudah aktif untuk plan Anda"
+                      >
+                        <Check size={11} className="text-emerald-600" /> Auto-WA
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowProModal(true)}
+                        className="h-8 gap-1 rounded-full border-emerald-300 bg-emerald-50/50 text-[11px] text-emerald-700 hover:bg-emerald-100"
+                      >
+                        <Sparkles size={11} className="text-emerald-500" /> Auto-WA
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -469,6 +571,84 @@ export function GuestsClient({
                 Upgrade TamuKita Pro Sekarang
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk WhatsApp Send Modal */}
+      {showBulkWaModal && (
+        <div className="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-emerald-200 bg-card p-6 text-center shadow-2xl">
+            {isSendingBulk ? (
+              <>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <Send size={28} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
+                  Mengirim Undangan...
+                </h3>
+                <p className="mt-2 font-sans text-xs text-muted-foreground">
+                  Sabar sebentar, sistem sedang membuka chat WhatsApp untuk setiap tamu.
+                </p>
+
+                {/* Progress Bar */}
+                <div className="my-6 rounded-full bg-muted p-1">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
+                    style={{
+                      width: `${(bulkProgress.sent / bulkProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+
+                <p className="font-sans text-sm font-semibold text-foreground">
+                  {bulkProgress.sent} / {bulkProgress.total} tamu
+                </p>
+                <p className="mt-1 font-sans text-xs text-muted-foreground">
+                  Jangan tutup halaman ini sampai proses selesai
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <Send size={28} />
+                </div>
+                <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
+                  Kirim Undangan Ke Semua Tamu?
+                </h3>
+                <p className="mt-2 font-sans text-xs text-muted-foreground">
+                  Sistem akan membuka chat WhatsApp ke setiap tamu dengan link undangan personal.
+                  Proses ini akan membuka banyak tab browser.
+                </p>
+
+                <div className="my-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-left font-sans text-xs text-foreground">
+                  <p className="font-semibold text-emerald-700">📊 Rincian Pengiriman:</p>
+                  <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+                    <li>Total tamu dengan nomor: {guests.filter((g) => g.phone).length}</li>
+                    <li>Delay antar tamu: 1.5 detik</li>
+                    <li>Format: Link personal ?to=Nama+Tamu</li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-center gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowBulkWaModal(false)}
+                    className="rounded-full text-xs"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    variant="brand"
+                    onClick={handleBulkWhatsAppSend}
+                    disabled={isSendingBulk}
+                    className="rounded-full text-xs font-semibold shadow-brand-md"
+                  >
+                    <Send size={12} /> Ya, Kirim Sekarang
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

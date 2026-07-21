@@ -6,6 +6,7 @@ import { getWeddingBySlug } from "@/lib/db/weddings";
 import { demoThemes, type DemoTheme } from "@/features/demo/data";
 import { InvitationDemo } from "@/features/demo/invitation-demo";
 import { constructMetadata } from "@/lib/helpers/metadata";
+import { getTemplateMusic } from "@/config/template-music";
 import type { Database } from "@/types/database";
 
 type WeddingRow = Database["public"]["Tables"]["weddings"]["Row"];
@@ -45,6 +46,21 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
   const guestName = to || "Tamu Undangan Spesial";
 
   const wedding = await getWeddingBySlug(slug);
+
+  // Debug: log wedding data
+  if (wedding) {
+    console.log("[Invitation Page] Wedding found:", {
+      id: wedding.id,
+      slug: wedding.slug,
+      gallery_urls: wedding.gallery_urls,
+      gallery_urls_length: wedding.gallery_urls?.length || 0,
+      bride_photo_url: wedding.bride_photo_url,
+      groom_photo_url: wedding.groom_photo_url,
+      cover_photo_url: wedding.cover_photo_url,
+      music_type: wedding.music_type,
+      music_custom_url: wedding.music_custom_url,
+    });
+  }
 
   let theme: DemoTheme | null = null;
 
@@ -121,7 +137,20 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
       guestName={guestName}
       weddingId={wedding?.id}
       slug={slug}
-      galleryUrls={wedding?.gallery_urls}
+      galleryUrls={wedding?.gallery_urls || undefined}
+      bridePhotoUrl={wedding?.bride_photo_url || undefined}
+      groomPhotoUrl={wedding?.groom_photo_url || undefined}
+      coverPhotoUrl={wedding?.cover_photo_url || undefined}
+      musicConfig={
+        wedding?.music_type === "custom" && wedding?.music_custom_url
+          ? {
+              themeId: theme.id,
+              title: "Musik Pilihan",
+              artist: "Custom",
+              file: wedding.music_custom_url,
+            }
+          : getTemplateMusic(theme.id)
+      }
     />
   );
 }

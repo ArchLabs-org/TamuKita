@@ -71,8 +71,8 @@ export function RsvpForm({ theme, weddingId, slug, guestName }: RsvpFormProps) {
 
     // Save to database
     const result = await saveGuestRsvpAction({
-      weddingId,
-      name,
+      weddingId: weddingId,
+      name: name,
       email: email || undefined,
       rsvpStatus: (status as "attending" | "maybe" | "not_attending") || "pending",
       notes: message,

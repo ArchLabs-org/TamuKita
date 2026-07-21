@@ -53,7 +53,22 @@ export async function uploadPhotoAction(
       data: { publicUrl },
     } = supabase.storage.from("picture").getPublicUrl(path);
 
-    return { url: publicUrl };
+    // For music files, return proxy URL instead of direct Supabase URL
+    // This ensures music files can be accessed even if Supabase Storage RLS restricts public access
+    const finalUrl =
+      folder === "music" ? `/api/weddings/music/${encodeURIComponent(path)}` : publicUrl;
+
+    console.log(`[uploadPhotoAction] File uploaded successfully for folder "${folder}":`, {
+      userId,
+      path,
+      publicUrl,
+      finalUrl,
+      fileType: file.type,
+      fileSize: file.size,
+      isProxied: folder === "music",
+    });
+
+    return { url: finalUrl };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Upload error";
     console.error("[uploadPhotoAction] Catch error:", errorMsg);

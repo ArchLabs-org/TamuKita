@@ -7,6 +7,7 @@ import { ArrowLeft, Users, Palette, CheckCircle2, Sparkles, Globe, Share2 } from
 import { constructMetadata } from "@/lib/helpers/metadata";
 import { requireAuth } from "@/lib/auth/helpers";
 import { getWeddingById } from "@/lib/db/weddings";
+import { WeddingDetailsClient } from "@/features/dashboard/wedding-details-client";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/lib/utils";
@@ -49,6 +50,37 @@ export default async function WeddingDetailPage({ params }: PageProps) {
       </div>
     );
   }
+
+  // Get user plan from database
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  let userPlan: any = "free";
+
+  if (supabase) {
+    try {
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      console.log("[Wedding Detail] User ID:", user.id);
+      console.log("[Wedding Detail] Profile Query Result:", { data: profileData, error });
+
+      if (profileData?.plan) {
+        userPlan = profileData.plan;
+        console.log("[Wedding Detail] ✓ User plan set to:", userPlan);
+      } else {
+        console.log("[Wedding Detail] ⚠ No plan found in profile data, using default: free");
+      }
+    } catch (err) {
+      console.error("[Wedding Detail] ✗ Error fetching profile:", err);
+    }
+  } else {
+    console.warn("[Wedding Detail] ⚠ Supabase client not available");
+  }
+
+  console.log("[Wedding Detail] Final userPlan:", userPlan);
 
   const displayData = wedding;
   const invitationUrl = `/${displayData.slug}`;
@@ -174,6 +206,20 @@ export default async function WeddingDetailPage({ params }: PageProps) {
             Sertakan ?to=Nama+Tamu pada link undangan.
           </p>
         </div>
+      </div>
+
+      {/* WhatsApp Share Section */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-1">
+        <WeddingDetailsClient
+          wedding={{
+            id: displayData.id,
+            slug: displayData.slug,
+            bride_name: displayData.bride_name,
+            groom_name: displayData.groom_name,
+          }}
+          userPlan={userPlan}
+          invitationUrl={fullInvitationUrl}
+        />
       </div>
 
       {/* Wedding Details Section */}
