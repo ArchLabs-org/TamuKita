@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { demoThemes, type DemoTheme } from "./data";
 import { RsvpForm } from "@/features/invitation/rsvp-form";
+import { getTemplateMusic } from "@/config/template-music";
 
 /* ════════════════════════════════════════════════════════════════════════════
    1. TEMPLATE-SPECIFIC AUDIO PLAYER (Strict Unique Audio Source per Theme)

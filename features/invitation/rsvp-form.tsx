@@ -66,7 +66,7 @@ export function RsvpForm({ theme, weddingId, slug }: RsvpFormProps) {
 
     setSubmitting(false);
 
-    if ("error" in result) {
+    if ("error" in result && result.error) {
       setError(result.error);
       return;
     }
@@ -171,7 +171,7 @@ export function RsvpForm({ theme, weddingId, slug }: RsvpFormProps) {
           disabled={submitting || submitted}
           className="gap-1.5 text-xs"
           style={{
-            background: submitted ? theme.palette.success || "#10b981" : theme.palette.accent,
+            background: submitted ? "#10b981" : theme.palette.accent,
           }}
         >
           {submitting ? (
@@ -219,16 +219,16 @@ export function RsvpForm({ theme, weddingId, slug }: RsvpFormProps) {
                     style={{
                       background:
                         wish.status === "attending"
-                          ? theme.palette.success + "20"
+                          ? "#10b98120"
                           : wish.status === "maybe"
-                            ? theme.palette.warning + "20"
-                            : theme.palette.danger + "20",
+                            ? "#f59e0b20"
+                            : "#ef444420",
                       color:
                         wish.status === "attending"
-                          ? theme.palette.success
+                          ? "#10b981"
                           : wish.status === "maybe"
-                            ? theme.palette.warning
-                            : theme.palette.danger,
+                            ? "#f59e0b"
+                            : "#ef4444",
                     }}
                   >
                     {wish.status === "attending"
