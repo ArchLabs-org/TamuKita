@@ -104,5 +104,5 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
     }
   }
 
-  return <InvitationDemo theme={theme} guestName={guestName} />;
+  return <InvitationDemo theme={theme} guestName={guestName} weddingId={wedding?.id} slug={slug} />;
 }

@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
 import { demoThemes, type DemoTheme } from "./data";
-import { getTemplateMusic } from "@/config/template-music";
+import { RsvpForm } from "@/features/invitation/rsvp-form";
 
 /* ════════════════════════════════════════════════════════════════════════════
    1. TEMPLATE-SPECIFIC AUDIO PLAYER (Strict Unique Audio Source per Theme)
@@ -1731,9 +1731,13 @@ function GallerySection({ theme }: { theme: DemoTheme }) {
 export function InvitationDemo({
   theme,
   guestName = "Tamu Undangan Spesial",
+  weddingId,
+  slug,
 }: {
   theme: DemoTheme;
   guestName?: string;
+  weddingId?: string;
+  slug?: string;
 }) {
   const [isOpened, setIsOpened] = React.useState(false);
 
@@ -1769,7 +1773,26 @@ export function InvitationDemo({
           <EventSection theme={theme} />
           <GallerySection theme={theme} />
           <GiftSection theme={theme} />
-          <RsvpSection theme={theme} />
+          <section
+            className="relative px-6 py-24"
+            style={{ background: theme.palette.bgSecondary }}
+          >
+            <div className="mx-auto max-w-4xl">
+              <h2
+                className="text-center font-display text-3xl font-light md:text-4xl"
+                style={{ color: theme.palette.accent }}
+              >
+                RSVP &amp; Ucapan Doa
+              </h2>
+              <p
+                className="mt-2 text-center font-sans text-xs"
+                style={{ color: theme.palette.textMuted }}
+              >
+                Konfirmasi kehadiran Anda dan berikan doa terbaik untuk mempelai.
+              </p>
+              <RsvpForm theme={theme} weddingId={weddingId} slug={slug || ""} />
+            </div>
+          </section>
 
           {/* Footer */}
           <footer
