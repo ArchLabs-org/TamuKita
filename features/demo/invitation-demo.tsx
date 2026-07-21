@@ -1742,6 +1742,11 @@ export function InvitationDemo({
 }) {
   const [isOpened, setIsOpened] = React.useState(false);
 
+  // Debug: log weddingId and slug
+  React.useEffect(() => {
+    console.log("[InvitationDemo] weddingId:", weddingId, "slug:", slug);
+  }, [weddingId, slug]);
+
   return (
     <div
       className="relative min-h-screen font-sans selection:bg-brand-500 selection:text-white"

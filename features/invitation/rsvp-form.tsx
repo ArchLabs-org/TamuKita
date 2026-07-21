@@ -23,6 +23,11 @@ export function RsvpForm({ theme, weddingId, slug }: RsvpFormProps) {
   const [submitted, setSubmitted] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Debug: log props
+  React.useEffect(() => {
+    console.log("[RsvpForm] weddingId:", weddingId, "slug:", slug);
+  }, [weddingId, slug]);
+
   // Demo wishes (fallback if no weddingId)
   const [wishes, setWishes] = React.useState([
     { name: "Budi Santoso", status: "attending", message: "Selamat atas pernikahan kalian!" },
@@ -39,18 +44,9 @@ export function RsvpForm({ theme, weddingId, slug }: RsvpFormProps) {
     setSubmitting(true);
     setError(null);
 
-    // If no wedding ID, just add to demo wishes
+    // If no wedding ID, show error
     if (!weddingId) {
-      setWishes((prev) => [
-        ...prev,
-        { name, status: status as "attending" | "maybe" | "not_attending", message },
-      ]);
-      setName("");
-      setEmail("");
-      setMessage("");
-      setStatus("attending");
-      setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 3000);
+      setError("ID Undangan tidak ditemukan. Tidak bisa menyimpan RSVP.");
       setSubmitting(false);
       return;
     }
