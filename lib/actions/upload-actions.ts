@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Upload a file to Supabase Storage and return its public URL.
- * Bucket: wedding-photos
+ * Bucket: picture
  */
 export async function uploadPhotoAction(
   formData: FormData,
@@ -23,36 +23,40 @@ export async function uploadPhotoAction(
   try {
     const supabase = await createClient();
     if (!supabase) {
-      return { url: `/music/${folder === "music" ? "aurora.mp3" : "preview.jpg"}` };
+      return { error: "Supabase tidak tersedia. Coba lagi nanti." };
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const userId = user?.id || "demo-user";
+    if (!user) {
+      return { error: "Anda harus login untuk upload file." };
+    }
+
+    const userId = user.id;
     const ext = file.name.split(".").pop()?.toLowerCase() ?? (folder === "music" ? "mp3" : "jpg");
     const timestamp = Date.now();
     const path = `${userId}/${folder}/${timestamp}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("wedding-photos")
-      .upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-      });
+    const { error: uploadError } = await supabase.storage.from("picture").upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+    });
 
     if (uploadError) {
-      console.warn("[uploadPhotoAction fallback]", uploadError.message);
-      return { url: folder === "music" ? "/music/aurora.mp3" : "/music/preview.jpg" };
+      console.error("[uploadPhotoAction] Upload failed:", uploadError.message);
+      return { error: `Upload gagal: ${uploadError.message}` };
     }
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("wedding-photos").getPublicUrl(path);
+    } = supabase.storage.from("picture").getPublicUrl(path);
 
     return { url: publicUrl };
-  } catch {
-    return { url: folder === "music" ? "/music/aurora.mp3" : "/music/preview.jpg" };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Upload error";
+    console.error("[uploadPhotoAction] Catch error:", errorMsg);
+    return { error: `Upload error: ${errorMsg}` };
   }
 }
