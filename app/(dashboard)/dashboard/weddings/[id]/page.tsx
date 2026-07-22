@@ -223,20 +223,6 @@ export default async function WeddingDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* WhatsApp Share Section */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-1">
-        <WeddingDetailsClient
-          wedding={{
-            id: displayData.id,
-            slug: displayData.slug,
-            bride_name: displayData.bride_name,
-            groom_name: displayData.groom_name,
-          }}
-          userPlan={userPlan}
-          invitationUrl={fullInvitationUrl}
-        />
-      </div>
-
       {/* Wedding Details Section */}
       <div className="mt-8 space-y-6">
         {/* Couple Info */}

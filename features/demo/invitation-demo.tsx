@@ -611,11 +611,13 @@ function CoverEnvelopeSection({
   theme,
   isOpened,
   guestName = "Tamu Undangan Spesial",
+  coverPhotoUrl,
   onOpen,
 }: {
   theme: DemoTheme;
   isOpened: boolean;
   guestName?: string;
+  coverPhotoUrl?: string;
   onOpen: () => void;
 }) {
   return (
@@ -635,28 +637,41 @@ function CoverEnvelopeSection({
       <FloralCornerOrnament theme={theme} position="bottom-left" />
       <FloralCornerOrnament theme={theme} position="bottom-right" />
 
-      {/* Center Decorative Emblem */}
+      {/* Center Decorative Emblem / Cover Photo */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full border shadow-xl"
+        className="relative mb-6 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border p-1 shadow-xl"
         style={{
-          borderColor: theme.palette.border,
+          borderColor: theme.palette.accent,
           background: `${theme.palette.card}b0`,
         }}
       >
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-[-8px] rounded-full border border-dashed opacity-40"
-          style={{ borderColor: theme.palette.accent }}
-        />
-        <span className="font-display text-2xl font-light" style={{ color: theme.palette.accent }}>
-          {theme.couple.coupleOrder === "groom_first"
-            ? `${theme.couple.groom[0]} & ${theme.couple.bride[0]}`
-            : `${theme.couple.bride[0]} & ${theme.couple.groom[0]}`}
-        </span>
+        {coverPhotoUrl ? (
+          <img
+            src={coverPhotoUrl}
+            alt="Foto Sampul Undangan"
+            className="h-full w-full rounded-full object-cover shadow-inner"
+          />
+        ) : (
+          <>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-8px] rounded-full border border-dashed opacity-40"
+              style={{ borderColor: theme.palette.accent }}
+            />
+            <span
+              className="font-display text-2xl font-light"
+              style={{ color: theme.palette.accent }}
+            >
+              {theme.couple.coupleOrder === "groom_first"
+                ? `${theme.couple.groom[0]} & ${theme.couple.bride[0]}`
+                : `${theme.couple.bride[0]} & ${theme.couple.groom[0]}`}
+            </span>
+          </>
+        )}
       </motion.div>
 
       <motion.p
@@ -753,7 +768,7 @@ function CoverEnvelopeSection({
 ════════════════════════════════════════════════════════════════════════════ */
 
 /* SECTION: Hero Cover */
-function HeroCoverSection({ theme }: { theme: DemoTheme }) {
+function HeroCoverSection({ theme, coverPhotoUrl }: { theme: DemoTheme; coverPhotoUrl?: string }) {
   const containerRef = React.useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -772,6 +787,23 @@ function HeroCoverSection({ theme }: { theme: DemoTheme }) {
       <FloralCornerOrnament theme={theme} position="top-right" />
 
       <motion.div style={{ y, opacity }} className="relative z-20 flex flex-col items-center">
+        {coverPhotoUrl && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="mb-6 h-36 w-36 overflow-hidden rounded-full border-2 p-1 shadow-2xl md:h-44 md:w-44"
+            style={{ borderColor: theme.palette.accent }}
+          >
+            <img
+              src={coverPhotoUrl}
+              alt="Foto Sampul Utama"
+              className="h-full w-full rounded-full object-cover shadow-inner"
+            />
+          </motion.div>
+        )}
+
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -2025,6 +2057,7 @@ export function InvitationDemo({
         theme={theme}
         isOpened={isOpened}
         guestName={guestName}
+        coverPhotoUrl={coverPhotoUrl}
         onOpen={() => setIsOpened(true)}
       />
 
@@ -2034,7 +2067,7 @@ export function InvitationDemo({
       {/* Main Invitation Sections */}
       {isOpened && (
         <main className="relative z-20">
-          <HeroCoverSection theme={theme} />
+          <HeroCoverSection theme={theme} coverPhotoUrl={coverPhotoUrl} />
           <QuoteSection theme={theme} />
           <CoupleSection
             theme={theme}

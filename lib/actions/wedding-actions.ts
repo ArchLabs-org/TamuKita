@@ -87,6 +87,19 @@ export async function createWeddingAction(data: WeddingFormData) {
 
     const userId = user?.id || "demo-user-123";
 
+    // Enforce 1 Free Wedding limit per registered user
+    const { data: userWeddings } = await supabase
+      .from("weddings")
+      .select("id")
+      .eq("user_id", userId);
+
+    if (userWeddings && userWeddings.length >= 1) {
+      return {
+        error:
+          "Batas Akun Gratis: Anda sudah memiliki 1 undangan aktif. Untuk menambah/membuat undangan baru, silakan lakukan Upgrade ke Paket Premium.",
+      };
+    }
+
     // Ensure slug uniqueness (optional, since we already have unique code)
     let attempt = 0;
     while (attempt < 3) {

@@ -60,12 +60,26 @@ export default async function DashboardPage() {
           <h2 className="font-display text-2xl font-semibold text-foreground">Dashboard</h2>
           <p className="mt-0.5 font-sans text-sm text-muted-foreground">Selamat datang kembali</p>
         </div>
-        <Button variant="brand" size="sm" asChild>
-          <Link href="/dashboard/create">
-            <Plus size={15} aria-hidden="true" />
-            Buat Undangan
-          </Link>
-        </Button>
+        {weddings.length >= 1 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+          >
+            <Link href="/pricing">
+              <Plus size={15} aria-hidden="true" className="mr-1" />
+              Tambah Undangan (Upgrade)
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="brand" size="sm" asChild>
+            <Link href="/dashboard/create">
+              <Plus size={15} aria-hidden="true" />
+              Buat Undangan
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Stats grid */}
@@ -92,15 +106,27 @@ export default async function DashboardPage() {
           Akses Cepat
         </h3>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Link
-            href="/dashboard/create"
-            className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 font-sans text-xs font-medium text-foreground transition-all hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-600">
-              <Plus size={16} />
-            </div>
-            <span>Buat Undangan</span>
-          </Link>
+          {weddings.length >= 1 ? (
+            <Link
+              href="/pricing"
+              className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-3 font-sans text-xs font-medium text-amber-900 transition-all hover:bg-amber-100"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-amber-800">
+                <Plus size={16} />
+              </div>
+              <span>Tambah Undangan (Bayar)</span>
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard/create"
+              className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 font-sans text-xs font-medium text-foreground transition-all hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+                <Plus size={16} />
+              </div>
+              <span>Buat Undangan</span>
+            </Link>
+          )}
 
           <Link
             href={ROUTES.guests}

@@ -4,13 +4,18 @@ import { Eye, ArrowRight, Sparkles } from "lucide-react";
 import { constructMetadata } from "@/lib/helpers/metadata";
 import { Button } from "@/components/ui/button";
 import { demoThemes } from "@/features/demo/data";
+import { requireAuth } from "@/lib/auth/helpers";
+import { getWeddingsByUserId } from "@/lib/db/weddings";
 
 export const metadata: Metadata = constructMetadata({
   title: "Koleksi Tema & Template Undangan",
   noIndex: true,
 });
 
-export default function ThemesPage() {
+export default async function ThemesPage() {
+  const user = await requireAuth();
+  const weddings = await getWeddingsByUserId(user.id);
+
   return (
     <div className="p-6">
       <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -21,11 +26,24 @@ export default function ThemesPage() {
           </p>
         </div>
 
-        <Button variant="brand" size="sm" asChild className="gap-1.5 rounded-full text-xs">
-          <Link href="/dashboard/create">
-            <Sparkles size={14} /> Buat Undangan Baru
-          </Link>
-        </Button>
+        {weddings.length >= 1 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+          >
+            <Link href="/pricing">
+              <Sparkles size={14} className="mr-1" /> Tambah Undangan (Upgrade)
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="brand" size="sm" asChild className="gap-1.5 rounded-full text-xs">
+            <Link href="/dashboard/create">
+              <Sparkles size={14} /> Buat Undangan Baru
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -111,16 +129,29 @@ export default function ThemesPage() {
                     </Link>
                   </Button>
 
-                  <Button
-                    variant="brand"
-                    size="sm"
-                    asChild
-                    className="flex-1 gap-1 rounded-full text-xs"
-                  >
-                    <Link href={`/dashboard/create?theme=${theme.id}`}>
-                      Pilih <ArrowRight size={13} />
-                    </Link>
-                  </Button>
+                  {weddings.length >= 1 ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="flex-1 gap-1 rounded-full border-amber-200 bg-amber-50 text-xs text-amber-900 hover:bg-amber-100"
+                    >
+                      <Link href="/pricing">
+                        Upgrade Paket <ArrowRight size={13} />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="brand"
+                      size="sm"
+                      asChild
+                      className="flex-1 gap-1 rounded-full text-xs"
+                    >
+                      <Link href={`/dashboard/create?theme=${theme.id}`}>
+                        Pilih <ArrowRight size={13} />
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

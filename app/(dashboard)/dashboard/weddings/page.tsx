@@ -28,12 +28,26 @@ export default async function WeddingsPage() {
             Kelola semua undangan pernikahan digital yang telah kalian buat.
           </p>
         </div>
-        <Button variant="brand" size="sm" asChild className="gap-1.5 rounded-full text-xs">
-          <Link href="/dashboard/create">
-            <Plus size={15} aria-hidden="true" />
-            Buat Undangan Baru
-          </Link>
-        </Button>
+        {weddings.length >= 1 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+          >
+            <Link href="/pricing">
+              <Plus size={15} aria-hidden="true" className="mr-1" />
+              Tambah Undangan (Upgrade)
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="brand" size="sm" asChild className="gap-1.5 rounded-full text-xs">
+            <Link href="/dashboard/create">
+              <Plus size={15} aria-hidden="true" />
+              Buat Undangan Baru
+            </Link>
+          </Button>
+        )}
       </div>
 
       {weddings.length === 0 ? (
