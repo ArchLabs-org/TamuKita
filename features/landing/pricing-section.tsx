@@ -12,8 +12,6 @@ import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 
 export function PricingSection() {
-  const [billing, setBilling] = React.useState<"monthly" | "annual">("annual");
-
   return (
     <Section id="pricing" className="bg-background">
       {/* Header */}
@@ -33,8 +31,7 @@ export function PricingSection() {
           transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mt-3 font-display text-display-md font-light tracking-tight"
         >
-          Harga yang{" "}
-          <em className="not-italic text-gradient">jujur dan transparan</em>
+          Harga yang <em className="text-gradient not-italic">jujur dan transparan</em>
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
@@ -46,41 +43,16 @@ export function PricingSection() {
           Mulai gratis, bayar hanya ketika kalian butuh lebih.
         </motion.p>
 
-        {/* Billing toggle */}
+        {/* One-time payment badge */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.22 }}
-          className="mt-7 inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 p-1"
+          className="shadow-xs mt-6 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 font-sans text-xs font-semibold text-brand-700"
         >
-          <button
-            onClick={() => setBilling("monthly")}
-            className={cn(
-              "rounded-full px-4 py-1.5 font-sans text-sm font-medium transition-all duration-200",
-              billing === "monthly"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            aria-pressed={billing === "monthly"}
-          >
-            Bulanan
-          </button>
-          <button
-            onClick={() => setBilling("annual")}
-            className={cn(
-              "flex items-center gap-2 rounded-full px-4 py-1.5 font-sans text-sm font-medium transition-all duration-200",
-              billing === "annual"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            aria-pressed={billing === "annual"}
-          >
-            Tahunan
-            <span className="rounded-full bg-brand-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-brand-700">
-              -20%
-            </span>
-          </button>
+          <Sparkles size={13} className="text-amber-500" />
+          <span>Bayar Sekali, Aktif Sampai Hari H (Tanpa Langganan Bulanan)</span>
         </motion.div>
       </div>
 
@@ -118,9 +90,7 @@ export function PricingSection() {
 
                 {/* Plan name & desc */}
                 <div className={isPro ? "pt-3" : ""}>
-                  <h3 className="font-sans text-base font-semibold text-foreground">
-                    {plan.name}
-                  </h3>
+                  <h3 className="font-sans text-base font-semibold text-foreground">{plan.name}</h3>
                   <p className="mt-0.5 font-sans text-xs text-muted-foreground">
                     {plan.description}
                   </p>
@@ -139,19 +109,15 @@ export function PricingSection() {
                   ) : (
                     <>
                       <span className="font-display text-3xl font-semibold text-foreground">
-                        {formatCurrency(
-                          billing === "annual" ? plan.price.annual : plan.price.monthly,
-                        )}
+                        {formatCurrency(plan.price.monthly)}
                       </span>
-                      <span className="mb-1 font-sans text-xs text-muted-foreground">/bln</span>
+                      <span className="mb-1 font-sans text-xs text-muted-foreground">/acara</span>
                     </>
                   )}
                 </div>
                 {plan.price.monthly > 0 && plan.id !== "enterprise" && (
-                  <p className="mt-0.5 font-sans text-[10px] text-muted-foreground">
-                    {billing === "annual"
-                      ? `Hemat ${formatCurrency((plan.price.monthly - plan.price.annual) * 12)}/tahun`
-                      : "Ditagih setiap bulan"}
+                  <p className="mt-0.5 font-sans text-[10px] font-medium text-brand-600">
+                    Sekali bayar per acara
                   </p>
                 )}
 
@@ -174,7 +140,11 @@ export function PricingSection() {
                 </Button>
 
                 {/* Features */}
-                <ul className="mt-5 space-y-2.5" role="list" aria-label={`Fitur paket ${plan.name}`}>
+                <ul
+                  className="mt-5 space-y-2.5"
+                  role="list"
+                  aria-label={`Fitur paket ${plan.name}`}
+                >
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
                       <div

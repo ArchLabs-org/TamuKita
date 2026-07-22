@@ -36,6 +36,47 @@ export async function addGuestAction(data: AddGuestData) {
       return { error: "Supabase tidak tersedia." };
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: "Silakan login terlebih dahulu." };
+    }
+
+    // Fetch user profile plan
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .single();
+
+    const plan = profile?.plan || "free";
+
+    if (plan === "free") {
+      return {
+        error:
+          "Batas Akun Gratis: Akun Coba-coba hanya bisa membuat preview. Silakan upgrade ke Paket Starter (maks 50 tamu) atau Professional (maks 1.000 tamu) untuk mengelola daftar tamu.",
+      };
+    }
+
+    // Check existing count of guests for this wedding
+    const { count } = await supabase
+      .from("guests")
+      .select("id", { count: "exact", head: true })
+      .eq("wedding_id", data.weddingId);
+
+    const currentCount = count || 0;
+    let maxGuests = 50;
+    if (plan === "professional") maxGuests = 1000;
+    if (plan === "enterprise") maxGuests = 999999;
+
+    if (currentCount >= maxGuests) {
+      return {
+        error: `Batas Tamu Tercapai: Paket ${plan.toUpperCase()} Anda dibatasi maksimal ${maxGuests} tamu. Silakan upgrade paket Anda.`,
+      };
+    }
+
     const { data: guest, error } = await supabase
       .from("guests")
       .insert({

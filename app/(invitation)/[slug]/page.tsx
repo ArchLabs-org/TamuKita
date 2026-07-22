@@ -66,7 +66,63 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
   let theme: DemoTheme | null = null;
 
   if (wedding) {
-    // Found wedding in DB — use it
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    if (supabase) {
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", wedding.user_id)
+        .single();
+
+      const ownerPlan = ownerProfile?.plan || "free";
+
+      if (ownerPlan === "free") {
+        return (
+          <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 py-12 text-center text-white">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/50">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h1 className="mt-6 font-display text-2xl font-bold sm:text-3xl">
+              Undangan Belum Diterbitkan
+            </h1>
+            <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-zinc-400">
+              Undangan digital ini masih dalam mode{" "}
+              <span className="font-semibold text-amber-400">Draf / Preview</span>. Link URL publik
+              hanya dapat diaktifkan setelah melakukan Upgrade ke{" "}
+              <span className="font-semibold text-white">Paket Starter</span> atau{" "}
+              <span className="font-semibold text-white">Professional</span>.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center rounded-full bg-amber-500 px-6 py-2.5 font-sans text-xs font-semibold text-zinc-950 transition-all hover:bg-amber-400"
+              >
+                Upgrade Paket Sekarang
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 px-6 py-2.5 font-sans text-xs font-medium text-zinc-300 transition-all hover:bg-zinc-800"
+              >
+                Kembali ke Dashboard
+              </Link>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // Found wedding in DB and plan is active — use it
     const w = wedding as WeddingRow;
     const baseTheme = demoThemes.find((t) => t.id === (w.theme_id || "aurora")) ?? demoThemes[0];
     theme = {

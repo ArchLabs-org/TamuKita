@@ -108,14 +108,43 @@ export default async function WeddingDetailPage({ params }: PageProps) {
         </Link>
         <span
           className={`rounded-full px-3 py-1 font-sans text-xs font-semibold ${
-            displayData.is_published
+            userPlan !== "free" && displayData.is_published
               ? "bg-emerald-100 text-emerald-700"
-              : "bg-muted text-muted-foreground"
+              : "bg-amber-100 text-amber-800"
           }`}
         >
-          {displayData.is_published ? "● Undangan Aktif" : "Draft"}
+          {userPlan !== "free" && displayData.is_published
+            ? "● Undangan Aktif (Publik)"
+            : "🔒 Mode Preview / Draft"}
         </span>
       </div>
+
+      {userPlan === "free" && (
+        <div className="shadow-xs mb-6 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-200 font-bold text-amber-900">
+              📌
+            </div>
+            <div>
+              <p className="font-sans text-xs font-bold uppercase tracking-wider text-amber-900">
+                Mode Coba Gratis (Preview Sahaja)
+              </p>
+              <p className="font-sans text-xs text-amber-800">
+                Link URL publik belum diaktifkan. Upgrade ke Paket Starter (maks 50 tamu) atau
+                Professional (maks 1000 tamu) untuk mengaktifkan link publik.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="brand"
+            size="sm"
+            asChild
+            className="flex-shrink-0 rounded-full text-xs shadow-sm"
+          >
+            <Link href="/pricing">Upgrade Sekarang</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Main Banner Card */}
       <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
