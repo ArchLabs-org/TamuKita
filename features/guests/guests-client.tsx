@@ -84,25 +84,65 @@ export function GuestsClient({
     fetchUserPlan();
   }, []);
 
-  // Export CSV Template
+  // Download Excel Template (.xls with title banner & 2 separate formatted columns)
   const handleDownloadTemplate = () => {
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      "Nama Tamu,Nomor WhatsApp,Catatan\n" +
-      "Budi Santoso,08123456789,Keluarga Besar\n" +
-      "Siti Rahma,08987654321,Teman SMA\n" +
-      "Andi Wijaya,08556677889,Rekan Kerja";
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Daftar Tamu Undangan</x:Name>
+                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          th, td { font-family: Arial, sans-serif; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <table border="1" style="border-collapse: collapse; border: 1px solid #d1d5db;">
+          <tr>
+            <th colspan="2" style="background-color: #8b5cf6; color: #ffffff; font-size: 14px; font-weight: bold; text-align: center; height: 38px; vertical-align: middle;">
+              DAFTAR TAMU UNDANGAN PERNIKAHAN — TAMUKITA
+            </th>
+          </tr>
+          <tr>
+            <th style="background-color: #f3f4f6; color: #111827; font-weight: bold; width: 250px; text-align: left; padding: 10px;">
+              Nama Tamu
+            </th>
+            <th style="background-color: #f3f4f6; color: #111827; font-weight: bold; width: 200px; text-align: left; padding: 10px;">
+              Nomor WhatsApp
+            </th>
+          </tr>
+          <tr>
+            <td style="padding: 8px;">Budi Santoso</td>
+            <td style="padding: 8px; mso-number-format:'\\@';">081234567890</td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `tamukita-template-tamu-${weddingSlug}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Template-Daftar-Tamu-${weddingSlug}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Template Excel (.xls) 2 kolom berhasil di-download!");
   };
 
-  // Import CSV File
+  // Import File Excel / CSV (Smart Parser for .xls, .csv, .tsv)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -112,27 +152,77 @@ export function GuestsClient({
       const content = evt.target?.result as string;
       if (!content) return;
 
-      const lines = content.split("\n").slice(1); // skip header
-      const imported: GuestItem[] = lines
-        .map((line, idx) => {
-          const parts = line.split(",");
-          const name = parts[0]?.trim();
-          const phone = parts[1]?.trim();
-          const notes = parts[2]?.trim();
-          if (!name) return null;
-          return {
+      const imported: GuestItem[] = [];
+
+      if (content.includes("<table") || content.includes("<td") || content.includes("<tr")) {
+        // Parse HTML Table (.xls)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, "text/html");
+        const rows = Array.from(doc.querySelectorAll("tr"));
+
+        rows.forEach((row, idx) => {
+          const cols = Array.from(row.querySelectorAll("td, th")).map(
+            (c) => c.textContent?.trim() || "",
+          );
+          if (cols.length >= 2) {
+            const name = cols[0];
+            const phone = cols[1];
+            // Skip header or title banner
+            if (
+              !name ||
+              name.toLowerCase().includes("daftar tamu") ||
+              name.toLowerCase().includes("nama tamu") ||
+              name.toLowerCase().includes("tamukita")
+            ) {
+              return;
+            }
+            imported.push({
+              id: `imported-${Date.now()}-${idx}`,
+              name,
+              phone: phone || null,
+              email: null,
+              rsvp_status: "pending",
+              seat_number: null,
+              notes: null,
+            });
+          }
+        });
+      } else {
+        // Parse CSV / TSV (supports semicolon, tab, or comma delimiters)
+        const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+
+        lines.forEach((line, idx) => {
+          const delimiter = line.includes(";") ? ";" : line.includes("\t") ? "\t" : ",";
+          const parts = line.split(delimiter);
+          const name = parts[0]?.trim().replace(/^["']|["']$/g, "");
+          const phone = parts[1]?.trim().replace(/^["']|["']$/g, "");
+
+          if (
+            !name ||
+            name.toLowerCase().includes("nama tamu") ||
+            name.toLowerCase().includes("daftar tamu")
+          ) {
+            return;
+          }
+
+          imported.push({
             id: `imported-${Date.now()}-${idx}`,
             name,
             phone: phone || null,
             email: null,
             rsvp_status: "pending",
             seat_number: null,
-            notes: notes || null,
-          };
-        })
-        .filter(Boolean) as GuestItem[];
+            notes: null,
+          });
+        });
+      }
 
-      setGuests((prev) => [...imported, ...prev]);
+      if (imported.length > 0) {
+        setGuests((prev) => [...imported, ...prev]);
+        toast.success(`Berhasil mengimpor ${imported.length} tamu!`);
+      } else {
+        toast.error("Tidak ada data tamu yang valid ditemukan dalam file.");
+      }
     };
     reader.readAsText(file);
   };
@@ -364,42 +454,29 @@ export function GuestsClient({
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="grid grid-cols-12 gap-3 border-b border-border bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <div className="col-span-3">Nama Tamu</div>
-            <div className="col-span-2">No. WhatsApp</div>
-            <div className="col-span-2">Status RSVP</div>
-            <div className="col-span-3">Link Undangan Kustom (Slug)</div>
-            <div className="col-span-2 text-right">Aksi WhatsApp</div>
-          </div>
-
-          <div className="divide-y divide-border">
+          {/* Mobile Card List View (For screens < 768px) */}
+          <div className="block divide-y divide-border md:hidden">
             {guests.map((g) => {
               const status = rsvpLabel[g.rsvp_status] ?? rsvpLabel.pending;
               return (
-                <div
-                  key={g.id}
-                  className="grid grid-cols-12 items-center gap-3 px-4 py-3.5 text-sm transition-colors hover:bg-muted/20"
-                >
-                  <div className="col-span-3 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 font-sans text-xs font-bold text-brand-700">
-                      {g.name[0]?.toUpperCase()}
+                <div key={g.id} className="space-y-3 bg-card p-4 hover:bg-muted/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-sans text-sm font-bold text-brand-700">
+                        {g.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-sans text-sm font-semibold text-foreground">
+                          {g.name}
+                        </p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {g.phone || "Tanpa No. WA"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-sans font-medium text-foreground">{g.name}</p>
-                      {g.notes && (
-                        <p className="font-sans text-[11px] text-muted-foreground">{g.notes}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="col-span-2 font-mono text-xs text-muted-foreground">
-                    {g.phone || "—"}
-                  </div>
-
-                  <div className="col-span-2">
                     <span
                       className={cn(
-                        "rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium",
+                        "shrink-0 rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium",
                         status.style,
                       )}
                     >
@@ -407,63 +484,186 @@ export function GuestsClient({
                     </span>
                   </div>
 
-                  <div className="col-span-3">
+                  {/* Catatan / Pesan Tamu */}
+                  {g.notes && (
+                    <div className="break-words rounded-xl border border-brand-200/60 bg-brand-50/40 px-3 py-2 text-xs leading-relaxed text-foreground/90">
+                      <span className="font-semibold text-brand-700">💬 Pesan:</span> {g.notes}
+                    </div>
+                  )}
+
+                  {/* Slug Link Button */}
+                  <div>
                     <button
                       onClick={() => copyGuestLink(g.name, g.id)}
-                      className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1 font-mono text-xs text-brand-600 hover:bg-muted"
-                      title="Klik untuk salin link undangan tamu"
+                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-brand-600 hover:bg-muted"
                     >
+                      <span className="truncate">?to={encodeURIComponent(g.name)}</span>
                       {copiedId === g.id ? (
-                        <>
-                          <Check size={12} className="text-emerald-500" /> Tersalin!
-                        </>
+                        <span className="flex shrink-0 items-center gap-1 font-bold text-emerald-600">
+                          <Check size={13} /> Tersalin!
+                        </span>
                       ) : (
-                        <>
-                          <Copy size={12} /> ?to={encodeURIComponent(g.name)}
-                        </>
+                        <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                          <Copy size={13} /> Salin Link
+                        </span>
                       )}
                     </button>
                   </div>
 
-                  <div className="col-span-2 flex items-center justify-end gap-1.5">
-                    {/* Manual WA Link */}
-                    {g.phone ? (
-                      <a
-                        href={getWaMessageLink(g.name, g.phone)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100"
-                        title="Kirim Manual via WhatsApp Web"
-                      >
-                        <MessageSquare size={14} />
-                      </a>
-                    ) : null}
-
-                    {/* Auto-WA Pro Button - Only for pro plans */}
-                    {userPlan === "professional" || userPlan === "enterprise" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled
-                        className="h-8 gap-1 rounded-full border-emerald-300 bg-emerald-100 text-[11px] text-emerald-700"
-                        title="Fitur Auto-WA sudah aktif untuk plan Anda"
-                      >
-                        <Check size={11} className="text-emerald-600" /> Auto-WA
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowProModal(true)}
-                        className="h-8 gap-1 rounded-full border-emerald-300 bg-emerald-50/50 text-[11px] text-emerald-700 hover:bg-emerald-100"
-                      >
-                        <Sparkles size={11} className="text-emerald-500" /> Auto-WA
-                      </Button>
-                    )}
+                  {/* WhatsApp Action Buttons */}
+                  <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1">
+                    <div className="flex items-center gap-2">
+                      {g.phone ? (
+                        <a
+                          href={getWaMessageLink(g.name, g.phone)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shadow-xs flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 font-sans text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          <MessageSquare size={13} />
+                          <span>Kirim WA</span>
+                        </a>
+                      ) : (
+                        <span className="font-sans text-[11px] italic text-muted-foreground">
+                          No WA belum diisi
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      {userPlan === "professional" || userPlan === "enterprise" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-sans text-[10px] font-semibold text-emerald-700">
+                          <Check size={11} /> Auto-WA
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowProModal(true)}
+                          className="h-7 gap-1 rounded-full border-amber-300 bg-amber-50 text-[10px] font-semibold text-amber-800"
+                        >
+                          <Crown size={10} className="text-amber-600" /> Auto-WA Pro
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Desktop Table View (For screens >= 768px) */}
+          <div className="hidden overflow-x-auto md:block">
+            <div className="min-w-[800px]">
+              <div className="grid grid-cols-12 gap-3 border-b border-border bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="col-span-3">Nama Tamu</div>
+                <div className="col-span-2">No. WhatsApp</div>
+                <div className="col-span-2">Status RSVP</div>
+                <div className="col-span-3">Link Undangan Kustom (Slug)</div>
+                <div className="col-span-2 text-right">Aksi WhatsApp</div>
+              </div>
+
+              <div className="divide-y divide-border">
+                {guests.map((g) => {
+                  const status = rsvpLabel[g.rsvp_status] ?? rsvpLabel.pending;
+                  return (
+                    <div
+                      key={g.id}
+                      className="grid grid-cols-12 items-center gap-3 px-4 py-3.5 text-sm transition-colors hover:bg-muted/20"
+                    >
+                      <div className="col-span-3 flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 font-sans text-xs font-bold text-brand-700">
+                          {g.name[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-sans font-semibold text-foreground">
+                            {g.name}
+                          </p>
+                          {g.notes && (
+                            <p
+                              className="mt-0.5 line-clamp-2 break-words font-sans text-[11px] text-muted-foreground"
+                              title={g.notes}
+                            >
+                              💬 {g.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2 truncate font-mono text-xs text-muted-foreground">
+                        {g.phone || "—"}
+                      </div>
+
+                      <div className="col-span-2">
+                        <span
+                          className={cn(
+                            "whitespace-nowrap rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium",
+                            status.style,
+                          )}
+                        >
+                          {status.label}
+                        </span>
+                      </div>
+
+                      <div className="col-span-3">
+                        <button
+                          onClick={() => copyGuestLink(g.name, g.id)}
+                          className="flex max-w-full items-center gap-1.5 truncate rounded-lg border border-border bg-muted/30 px-2.5 py-1 font-mono text-xs text-brand-600 hover:bg-muted"
+                          title="Klik untuk salin link undangan tamu"
+                        >
+                          {copiedId === g.id ? (
+                            <>
+                              <Check size={12} className="shrink-0 text-emerald-500" /> Tersalin!
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={12} className="shrink-0" /> ?to=
+                              {encodeURIComponent(g.name)}
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="col-span-2 flex items-center justify-end gap-1.5">
+                        {/* Manual WA Link */}
+                        {g.phone ? (
+                          <a
+                            href={getWaMessageLink(g.name, g.phone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100"
+                            title="Kirim Manual via WhatsApp Web"
+                          >
+                            <MessageSquare size={14} />
+                          </a>
+                        ) : null}
+
+                        {/* Auto-WA Pro Button - Only for pro plans */}
+                        {userPlan === "professional" || userPlan === "enterprise" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled
+                            className="h-8 gap-1 whitespace-nowrap rounded-full border-emerald-300 bg-emerald-100 text-[11px] text-emerald-700"
+                            title="Fitur Auto-WA sudah aktif untuk plan Anda"
+                          >
+                            <Check size={11} className="text-emerald-600" /> Auto-WA
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowProModal(true)}
+                            className="h-8 gap-1 whitespace-nowrap rounded-full border-emerald-300 bg-emerald-50/50 text-[11px] text-emerald-700 hover:bg-emerald-100"
+                          >
+                            <Sparkles size={11} className="text-emerald-500" /> Auto-WA
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div className="border-t border-border bg-muted/20 px-4 py-3">

@@ -37,6 +37,13 @@ export function DashboardSidebar({ userName = "Pengguna", userEmail = "" }: Dash
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
 
+  // Auto-collapse sidebar on mobile screens (< 768px) on initial mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setCollapsed(true);
+    }
+  }, []);
+
   const initials = userName
     .split(" ")
     .map((n) => n[0])
@@ -47,8 +54,8 @@ export function DashboardSidebar({ userName = "Pengguna", userEmail = "" }: Dash
   return (
     <aside
       className={cn(
-        "border-sidebar-border bg-sidebar-background relative flex h-full flex-col border-r transition-all duration-300",
-        collapsed ? "w-16" : "w-60",
+        "border-sidebar-border bg-sidebar-background relative z-30 flex h-full shrink-0 flex-col border-r transition-all duration-300",
+        collapsed ? "w-14 md:w-16" : "w-60",
       )}
       aria-label="Sidebar navigasi"
     >
