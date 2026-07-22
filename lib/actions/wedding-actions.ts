@@ -10,6 +10,7 @@ export interface WeddingFormData {
   brideParents?: string;
   groomName: string;
   groomParents?: string;
+  coupleOrder?: "bride_first" | "groom_first";
   // Step 2 — Tema
   themeId: string;
   // Step 3 — Waktu & Lokasi
@@ -62,11 +63,16 @@ function generateUniqueCode(): string {
  */
 export async function createWeddingAction(data: WeddingFormData) {
   // Generate slug from first names only + unique code
-  const brideFirstName = (data.brideName || "bride").split(" ")[0];
-  const groomFirstName = (data.groomName || "groom").split(" ")[0];
+  const isGroomFirst = data.coupleOrder === "groom_first";
+  const firstFirstName = ((isGroomFirst ? data.groomName : data.brideName) || "first").split(
+    " ",
+  )[0];
+  const secondFirstName = ((isGroomFirst ? data.brideName : data.groomName) || "second").split(
+    " ",
+  )[0];
   const uniqueCode = generateUniqueCode();
 
-  const baseSlug = slugify(`${brideFirstName}-${groomFirstName}-${uniqueCode}`);
+  const baseSlug = slugify(`${firstFirstName}-${secondFirstName}-${uniqueCode}`);
   let slug = baseSlug || "undangan-" + uniqueCode;
 
   try {
@@ -92,7 +98,7 @@ export async function createWeddingAction(data: WeddingFormData) {
 
       if (!existing) break;
       attempt++;
-      slug = slugify(`${brideFirstName}-${groomFirstName}-${generateUniqueCode()}`);
+      slug = slugify(`${firstFirstName}-${secondFirstName}-${generateUniqueCode()}`);
     }
     while (attempt < 10) {
       const { data: existing } = await supabase
@@ -114,6 +120,7 @@ export async function createWeddingAction(data: WeddingFormData) {
         groom_name: data.groomName || "Dimas",
         bride_parents: data.brideParents || null,
         groom_parents: data.groomParents || null,
+        couple_order: data.coupleOrder || "bride_first",
         wedding_date: data.weddingDate || new Date().toISOString().slice(0, 10),
         akad_date: data.akadDate || null,
         akad_time: data.akadTime || null,
@@ -180,6 +187,7 @@ export async function updateWeddingAction(weddingId: string, data: Partial<Weddi
   if (data.groomName !== undefined) updates.groom_name = data.groomName;
   if (data.brideParents !== undefined) updates.bride_parents = data.brideParents;
   if (data.groomParents !== undefined) updates.groom_parents = data.groomParents;
+  if (data.coupleOrder !== undefined) updates.couple_order = data.coupleOrder;
   if (data.weddingDate !== undefined) updates.wedding_date = data.weddingDate;
   if (data.themeId !== undefined) updates.theme_id = data.themeId;
   if (data.akadDate !== undefined) updates.akad_date = data.akadDate;

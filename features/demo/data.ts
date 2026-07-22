@@ -19,12 +19,13 @@ export interface DemoTheme {
     brideParents: string;
     groom: string;
     groomParents: string;
-    story: string;
+    story?: string; // optional — if empty, section is hidden
+    coupleOrder?: "bride_first" | "groom_first";
   };
   event: {
-    akad: { date: string; time: string; venue: string; address: string };
-    reception: { date: string; time: string; venue: string; address: string };
-    countdown: string; // ISO date for countdown target
+    akad: { date: string; time: string; venue: string; address: string; mapsUrl?: string };
+    reception: { date: string; time: string; venue: string; address: string; mapsUrl?: string };
+    countdown: string; // ISO date for countdown target — should target reception date
   };
   gallery: string[]; // gradient descriptions for visual placeholders
   timeline: { year: string; title: string; desc: string }[];
@@ -139,9 +140,17 @@ export const demoThemes: DemoTheme[] = [
       "from-neutral-100 to-stone-200",
     ],
     timeline: [
-      { year: "2022", title: "Pertemuan Pertama", desc: "Seminar arsitektur internasional di Singapura" },
+      {
+        year: "2022",
+        title: "Pertemuan Pertama",
+        desc: "Seminar arsitektur internasional di Singapura",
+      },
       { year: "2022", title: "Teman Dekat", desc: "Bertukar inspirasi dan ide desain" },
-      { year: "2023", title: "Bersama Resmi", desc: "Hubungan yang dimulai dengan saling menghargai" },
+      {
+        year: "2023",
+        title: "Bersama Resmi",
+        desc: "Hubungan yang dimulai dengan saling menghargai",
+      },
       { year: "2025", title: "Lamaran", desc: "Di sebuah galeri seni privat di Tokyo" },
       { year: "2026", title: "Pernikahan", desc: "Menyatukan dua jiwa yang serasi" },
     ],
@@ -201,7 +210,11 @@ export const demoThemes: DemoTheme[] = [
       { year: "2020", title: "Pertama Jumpa", desc: "Workshop berkebun organik di Yogyakarta" },
       { year: "2021", title: "Sering Berkomunikasi", desc: "Bertukar tips berkebun dan memasak" },
       { year: "2022", title: "Jatuh Cinta", desc: "Tanpa disadari, benih cinta telah tumbuh" },
-      { year: "2024", title: "Dilamar", desc: "Di kebun sendiri, di antara tanaman yang mereka rawat" },
+      {
+        year: "2024",
+        title: "Dilamar",
+        desc: "Di kebun sendiri, di antara tanaman yang mereka rawat",
+      },
       { year: "2026", title: "Menikah", desc: "Bersatu dalam ikatan yang alami dan tulus" },
     ],
     gifts: [
@@ -257,11 +270,27 @@ export const demoThemes: DemoTheme[] = [
       "from-gray-800 to-zinc-700",
     ],
     timeline: [
-      { year: "2022", title: "Pameran Foto", desc: "Bertemu di pameran 'Samudra' di Bali Art Center" },
+      {
+        year: "2022",
+        title: "Pameran Foto",
+        desc: "Bertemu di pameran 'Samudra' di Bali Art Center",
+      },
       { year: "2022", title: "Perjalanan Pertama", desc: "Diving bersama di Raja Ampat" },
-      { year: "2023", title: "Bersama Resmi", desc: "Membangun kenangan di berbagai penjuru dunia" },
-      { year: "2025", title: "Lamaran", desc: "Di atas kapal saat matahari terbenam di Labuan Bajo" },
-      { year: "2026", title: "Bersatu Selamanya", desc: "Dua jiwa yang bertemu di kedalaman yang sama" },
+      {
+        year: "2023",
+        title: "Bersama Resmi",
+        desc: "Membangun kenangan di berbagai penjuru dunia",
+      },
+      {
+        year: "2025",
+        title: "Lamaran",
+        desc: "Di atas kapal saat matahari terbenam di Labuan Bajo",
+      },
+      {
+        year: "2026",
+        title: "Bersatu Selamanya",
+        desc: "Dua jiwa yang bertemu di kedalaman yang sama",
+      },
     ],
     gifts: [
       { bank: "BCA", account: "4455667788", name: "Laila Maharani" },
@@ -376,10 +405,18 @@ export const demoThemes: DemoTheme[] = [
     ],
     timeline: [
       { year: "2023", title: "Perkenalan", desc: "Silaturahmi keluarga yang penuh berkah" },
-      { year: "2023", title: "Ta'aruf", desc: "Mengenal satu sama lain dengan cara yang bermartabat" },
+      {
+        year: "2023",
+        title: "Ta'aruf",
+        desc: "Mengenal satu sama lain dengan cara yang bermartabat",
+      },
       { year: "2024", title: "Khitbah", desc: "Lamaran resmi dengan prosesi adat yang indah" },
       { year: "2025", title: "Persiapan", desc: "Mempersiapkan hari yang paling sakral" },
-      { year: "2026", title: "Akad Nikah", desc: "Ijab kabul yang mengikat dua hati dalam satu ikatan suci" },
+      {
+        year: "2026",
+        title: "Akad Nikah",
+        desc: "Ijab kabul yang mengikat dua hati dalam satu ikatan suci",
+      },
     ],
     gifts: [
       { bank: "BRI Syariah", account: "6677889900", name: "Amira Zahra" },

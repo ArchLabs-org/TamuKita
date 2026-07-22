@@ -34,8 +34,13 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id;
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp3";
+    const rawName = file.name.replace(/\.[^/.]+$/, ""); // strip extension
+    const cleanName = rawName
+      .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 40);
     const timestamp = Date.now();
-    const path = `${userId}/music/${timestamp}.${ext}`;
+    const path = `${userId}/music/${timestamp}_${cleanName}.${ext}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage.from("picture").upload(path, file, {

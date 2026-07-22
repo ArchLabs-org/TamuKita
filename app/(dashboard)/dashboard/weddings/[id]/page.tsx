@@ -3,7 +3,16 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Users, Palette, CheckCircle2, Sparkles, Globe, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  Palette,
+  CheckCircle2,
+  Sparkles,
+  Globe,
+  Share2,
+  Edit3,
+} from "lucide-react";
 import { constructMetadata } from "@/lib/helpers/metadata";
 import { requireAuth } from "@/lib/auth/helpers";
 import { getWeddingById } from "@/lib/db/weddings";
@@ -146,6 +155,12 @@ export default async function WeddingDetailPage({ params }: PageProps) {
             </Button>
 
             <Button variant="outline" size="sm" asChild className="gap-1.5 rounded-full text-xs">
+              <Link href={`${ROUTES.weddings}/${id}/edit`}>
+                <Edit3 size={14} /> Edit Undangan
+              </Link>
+            </Button>
+
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 rounded-full text-xs">
               <Link href={ROUTES.guests}>
                 <Users size={14} /> Kelola Daftar Tamu
               </Link>

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants/routes";
+import { extractCleanMusicTitle } from "@/lib/utils";
 import { demoThemes, type DemoTheme } from "./data";
 import { RsvpFormSimple } from "@/features/invitation/rsvp-form-simple";
 import { getTemplateMusic, type TemplateMusic } from "@/config/template-music";
@@ -200,7 +201,7 @@ function MusicPlayerWidget({
         disabled={!audioExists || isLoading}
         whileHover={audioExists && !isLoading ? { scale: 1.06 } : {}}
         whileTap={audioExists && !isLoading ? { scale: 0.94 } : {}}
-        className={`group relative flex items-center gap-3 rounded-full border px-4 py-2.5 shadow-xl backdrop-blur-xl transition-all ${
+        className={`group relative flex items-center gap-2.5 rounded-full border px-3.5 py-2 shadow-xl backdrop-blur-xl transition-all ${
           !audioExists || isLoading ? "cursor-not-allowed opacity-75" : "cursor-pointer"
         }`}
         style={{
@@ -214,22 +215,22 @@ function MusicPlayerWidget({
         <motion.div
           animate={playing ? { rotate: 360 } : { rotate: 0 }}
           transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-          className="relative flex h-7 w-7 items-center justify-center rounded-full border border-black/10 bg-zinc-900 shadow-inner"
+          className="relative flex h-6 w-6 items-center justify-center rounded-full border border-black/10 bg-zinc-900 shadow-inner"
         >
           <div
-            className="h-2.5 w-2.5 rounded-full border border-white/20"
+            className="h-2 w-2 rounded-full border border-white/20"
             style={{ background: theme.palette.accent }}
           />
           <div className="absolute h-1 w-1 rounded-full bg-white/80" />
         </motion.div>
 
-        {/* Live Audio Frequency Spectrum */}
-        <div className="flex items-end gap-[2px]" style={{ height: 16 }} aria-hidden="true">
+        {/* Live Audio Frequency Spectrum Bars (Melody) */}
+        <div className="flex items-end gap-[2px]" style={{ height: 14 }} aria-hidden="true">
           {spectrumBars.map((h, i) => (
             <motion.div
               key={i}
-              className="w-[2.5px] rounded-full"
-              style={{ height: 16, originY: 1, background: theme.palette.accent }}
+              className="w-[2px] rounded-full"
+              style={{ height: 14, originY: 1, background: theme.palette.accent }}
               animate={
                 playing
                   ? {
@@ -249,31 +250,18 @@ function MusicPlayerWidget({
           ))}
         </div>
 
-        <span
-          className="font-sans text-[10px] font-medium uppercase tracking-widest"
-          style={{ color: playing ? theme.palette.accent : theme.palette.textMuted }}
-        >
-          {isLoading
-            ? "Memuat Musik..."
-            : audioExists === false
-              ? "Musik belum siap"
-              : playing
-                ? `${musicToUse.title} — ${musicToUse.artist}`
-                : "Putar Musik"}
-        </span>
-
         {isLoading ? (
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-4 w-4"
+            className="h-3.5 w-3.5"
           >
-            <VolumeX size={13} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
+            <VolumeX size={12} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
           </motion.div>
         ) : playing ? (
-          <Volume2 size={13} style={{ color: theme.palette.accent }} aria-hidden="true" />
+          <Volume2 size={12} style={{ color: theme.palette.accent }} aria-hidden="true" />
         ) : (
-          <VolumeX size={13} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
+          <VolumeX size={12} style={{ color: theme.palette.textMuted }} aria-hidden="true" />
         )}
       </motion.button>
     </div>
@@ -665,7 +653,9 @@ function CoverEnvelopeSection({
           style={{ borderColor: theme.palette.accent }}
         />
         <span className="font-display text-2xl font-light" style={{ color: theme.palette.accent }}>
-          {theme.couple.bride[0]} &amp; {theme.couple.groom[0]}
+          {theme.couple.coupleOrder === "groom_first"
+            ? `${theme.couple.groom[0]} & ${theme.couple.bride[0]}`
+            : `${theme.couple.bride[0]} & ${theme.couple.groom[0]}`}
         </span>
       </motion.div>
 
@@ -689,7 +679,12 @@ function CoverEnvelopeSection({
           fontSize: "clamp(2.8rem, 8vw, 4.8rem)",
         }}
       >
-        {theme.couple.bride.split(" ")[0]} &amp; {theme.couple.groom.split(" ")[0]}
+        {(() => {
+          const isGroomFirst = theme.couple.coupleOrder === "groom_first";
+          const first = isGroomFirst ? theme.couple.groom : theme.couple.bride;
+          const second = isGroomFirst ? theme.couple.bride : theme.couple.groom;
+          return `${first.split(" ")[0]} & ${second.split(" ")[0]}`;
+        })()}
       </motion.h1>
 
       <motion.p
@@ -801,7 +796,12 @@ function HeroCoverSection({ theme }: { theme: DemoTheme }) {
             fontSize: "clamp(3.6rem, 11vw, 6.5rem)",
           }}
         >
-          {theme.couple.bride.split(" ")[0]}
+          {
+            (theme.couple.coupleOrder === "groom_first"
+              ? theme.couple.groom
+              : theme.couple.bride
+            ).split(" ")[0]
+          }
         </motion.h1>
 
         <motion.div
@@ -832,7 +832,12 @@ function HeroCoverSection({ theme }: { theme: DemoTheme }) {
             fontSize: "clamp(3.6rem, 11vw, 6.5rem)",
           }}
         >
-          {theme.couple.groom.split(" ")[0]}
+          {
+            (theme.couple.coupleOrder === "groom_first"
+              ? theme.couple.bride
+              : theme.couple.groom
+            ).split(" ")[0]
+          }
         </motion.h1>
 
         <motion.p
@@ -940,103 +945,199 @@ function CoupleSection({
         <SectionDivider theme={theme} />
 
         <div className="mt-12 grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-16">
-          {/* Bride Card */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
-            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
-          >
-            {/* Soft Circle Blur & Vignette Frame */}
-            <div
-              className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
-              style={{ borderColor: theme.palette.accent }}
-            >
-              {bridePhotoUrl ? (
-                <img
-                  src={bridePhotoUrl}
-                  alt={theme.couple.bride}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
+          {theme.couple.coupleOrder === "groom_first" ? (
+            <>
+              {/* Groom Card */}
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+                style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+              >
                 <div
-                  className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-                  style={{ background: theme.palette.bgSecondary }}
+                  className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
+                  style={{ borderColor: theme.palette.accent }}
                 >
-                  <span
-                    className="font-display text-4xl font-light"
-                    style={{ color: theme.palette.accent }}
-                  >
-                    {theme.couple.bride[0]}
-                  </span>
+                  {groomPhotoUrl ? (
+                    <img
+                      src={groomPhotoUrl}
+                      alt={theme.couple.groom}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                      style={{ background: theme.palette.bgSecondary }}
+                    >
+                      <span
+                        className="font-display text-4xl font-light"
+                        style={{ color: theme.palette.accent }}
+                      >
+                        {theme.couple.groom[0]}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+                <h3
+                  className="font-display text-2xl font-medium"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.groom}
+                </h3>
+                <p
+                  className="mt-2 font-sans text-xs leading-relaxed"
+                  style={{ color: theme.palette.textMuted }}
+                >
+                  {theme.couple.groomParents}
+                </p>
+              </motion.div>
 
-            <h3
-              className="font-display text-2xl font-medium"
-              style={{ color: theme.palette.accent }}
-            >
-              {theme.couple.bride}
-            </h3>
-            <p
-              className="mt-2 font-sans text-xs leading-relaxed"
-              style={{ color: theme.palette.textMuted }}
-            >
-              {theme.couple.brideParents}
-            </p>
-          </motion.div>
-
-          {/* Groom Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
-            style={{ borderColor: theme.palette.border, background: theme.palette.card }}
-          >
-            {/* Soft Circle Blur & Vignette Frame */}
-            <div
-              className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
-              style={{ borderColor: theme.palette.accent }}
-            >
-              {groomPhotoUrl ? (
-                <img
-                  src={groomPhotoUrl}
-                  alt={theme.couple.groom}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
+              {/* Bride Card */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+                style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+              >
                 <div
-                  className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-                  style={{ background: theme.palette.bgSecondary }}
+                  className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
+                  style={{ borderColor: theme.palette.accent }}
                 >
-                  <span
-                    className="font-display text-4xl font-light"
-                    style={{ color: theme.palette.accent }}
-                  >
-                    {theme.couple.groom[0]}
-                  </span>
+                  {bridePhotoUrl ? (
+                    <img
+                      src={bridePhotoUrl}
+                      alt={theme.couple.bride}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                      style={{ background: theme.palette.bgSecondary }}
+                    >
+                      <span
+                        className="font-display text-4xl font-light"
+                        style={{ color: theme.palette.accent }}
+                      >
+                        {theme.couple.bride[0]}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+                <h3
+                  className="font-display text-2xl font-medium"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.bride}
+                </h3>
+                <p
+                  className="mt-2 font-sans text-xs leading-relaxed"
+                  style={{ color: theme.palette.textMuted }}
+                >
+                  {theme.couple.brideParents}
+                </p>
+              </motion.div>
+            </>
+          ) : (
+            <>
+              {/* Bride Card */}
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+                style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+              >
+                <div
+                  className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
+                  style={{ borderColor: theme.palette.accent }}
+                >
+                  {bridePhotoUrl ? (
+                    <img
+                      src={bridePhotoUrl}
+                      alt={theme.couple.bride}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                      style={{ background: theme.palette.bgSecondary }}
+                    >
+                      <span
+                        className="font-display text-4xl font-light"
+                        style={{ color: theme.palette.accent }}
+                      >
+                        {theme.couple.bride[0]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <h3
+                  className="font-display text-2xl font-medium"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.bride}
+                </h3>
+                <p
+                  className="mt-2 font-sans text-xs leading-relaxed"
+                  style={{ color: theme.palette.textMuted }}
+                >
+                  {theme.couple.brideParents}
+                </p>
+              </motion.div>
 
-            <h3
-              className="font-display text-2xl font-medium"
-              style={{ color: theme.palette.accent }}
-            >
-              {theme.couple.groom}
-            </h3>
-            <p
-              className="mt-2 font-sans text-xs leading-relaxed"
-              style={{ color: theme.palette.textMuted }}
-            >
-              {theme.couple.groomParents}
-            </p>
-          </motion.div>
+              {/* Groom Card */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-col items-center rounded-3xl border p-8 shadow-xl transition-transform hover:-translate-y-1"
+                style={{ borderColor: theme.palette.border, background: theme.palette.card }}
+              >
+                <div
+                  className="relative mb-5 flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border p-1.5 shadow-2xl"
+                  style={{ borderColor: theme.palette.accent }}
+                >
+                  {groomPhotoUrl ? (
+                    <img
+                      src={groomPhotoUrl}
+                      alt={theme.couple.groom}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="circle-blur-blend vignette-effect flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+                      style={{ background: theme.palette.bgSecondary }}
+                    >
+                      <span
+                        className="font-display text-4xl font-light"
+                        style={{ color: theme.palette.accent }}
+                      >
+                        {theme.couple.groom[0]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <h3
+                  className="font-display text-2xl font-medium"
+                  style={{ color: theme.palette.accent }}
+                >
+                  {theme.couple.groom}
+                </h3>
+                <p
+                  className="mt-2 font-sans text-xs leading-relaxed"
+                  style={{ color: theme.palette.textMuted }}
+                >
+                  {theme.couple.groomParents}
+                </p>
+              </motion.div>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -1161,7 +1262,7 @@ function EventSection({ theme }: { theme: DemoTheme }) {
               {theme.event.akad.address}
             </p>
 
-            {/* Embedded Google Maps Box */}
+            {/* Embedded Google Maps — use pin URL if provided, else search by address */}
             <div
               className="mt-5 w-full overflow-hidden rounded-2xl border shadow-inner"
               style={{ borderColor: theme.palette.border, height: 160 }}
@@ -1173,22 +1274,39 @@ function EventSection({ theme }: { theme: DemoTheme }) {
                 style={{ border: 0 }}
                 loading="lazy"
                 allowFullScreen
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                src={
+                  theme.event.akad.mapsUrl
+                    ? theme.event.akad.mapsUrl
+                        .replace(
+                          "/maps/",
+                          "/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU35lE&q=",
+                        )
+                        .includes("embed")
+                      ? theme.event.akad.mapsUrl // already embed URL
+                      : `https://maps.google.com/maps?q=${encodeURIComponent(theme.event.akad.mapsUrl)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+                    : `https://maps.google.com/maps?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`
+                }
               />
             </div>
 
             <Button
               variant="outline"
               size="sm"
-              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium"
+              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium transition-transform hover:scale-105"
+              style={{
+                borderColor: theme.palette.border,
+                background: theme.palette.card,
+                color: theme.palette.text,
+              }}
               onClick={() =>
                 window.open(
-                  `https://maps.google.com/?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}`,
+                  theme.event.akad.mapsUrl ||
+                    `https://maps.google.com/?q=${encodeURIComponent(theme.event.akad.venue + " " + theme.event.akad.address)}`,
                   "_blank",
                 )
               }
             >
-              <MapPin size={13} /> Buka Google Maps
+              <MapPin size={13} style={{ color: theme.palette.accent }} /> Buka Google Maps
             </Button>
           </motion.div>
 
@@ -1233,7 +1351,7 @@ function EventSection({ theme }: { theme: DemoTheme }) {
               {theme.event.reception.address}
             </p>
 
-            {/* Embedded Google Maps Box */}
+            {/* Embedded Google Maps — use pin URL if provided, else search by address */}
             <div
               className="mt-5 w-full overflow-hidden rounded-2xl border shadow-inner"
               style={{ borderColor: theme.palette.border, height: 160 }}
@@ -1245,22 +1363,34 @@ function EventSection({ theme }: { theme: DemoTheme }) {
                 style={{ border: 0 }}
                 loading="lazy"
                 allowFullScreen
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                src={
+                  theme.event.reception.mapsUrl
+                    ? theme.event.reception.mapsUrl.includes("embed")
+                      ? theme.event.reception.mapsUrl // already embed URL
+                      : `https://maps.google.com/maps?q=${encodeURIComponent(theme.event.reception.mapsUrl)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+                    : `https://maps.google.com/maps?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`
+                }
               />
             </div>
 
             <Button
               variant="outline"
               size="sm"
-              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium"
+              className="mt-5 h-9 gap-2 rounded-full px-5 text-xs font-medium transition-transform hover:scale-105"
+              style={{
+                borderColor: theme.palette.border,
+                background: theme.palette.card,
+                color: theme.palette.text,
+              }}
               onClick={() =>
                 window.open(
-                  `https://maps.google.com/?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}`,
+                  theme.event.reception.mapsUrl ||
+                    `https://maps.google.com/?q=${encodeURIComponent(theme.event.reception.venue + " " + theme.event.reception.address)}`,
                   "_blank",
                 )
               }
             >
-              <MapPin size={13} /> Buka Google Maps
+              <MapPin size={13} style={{ color: theme.palette.accent }} /> Buka Google Maps
             </Button>
           </motion.div>
         </div>
@@ -1272,6 +1402,9 @@ function EventSection({ theme }: { theme: DemoTheme }) {
 /* SECTION: Digital Gift (Angpao) */
 function GiftSection({ theme }: { theme: DemoTheme }) {
   const [copiedIndex, setCopiedIndex] = React.useState<number | null>(null);
+
+  // If no gift accounts specified, do not render this section
+  if (!theme.gifts || theme.gifts.length === 0) return null;
 
   const copyAccount = (account: string, index: number) => {
     navigator.clipboard.writeText(account);
@@ -1627,8 +1760,11 @@ function RsvpSection({ theme }: { theme: DemoTheme }) {
   );
 }
 
-/* SECTION: Love Story Timeline */
+/* SECTION: Love Story Timeline — only rendered when timeline has items */
 function TimelineSection({ theme }: { theme: DemoTheme }) {
+  // If no timeline items, render nothing
+  if (!theme.timeline || theme.timeline.length === 0) return null;
+
   return (
     <section className="relative px-6 py-24" style={{ background: theme.palette.bg }}>
       <div className="mx-auto max-w-3xl text-center">
@@ -1936,7 +2072,9 @@ export function InvitationDemo({
             style={{ borderColor: theme.palette.border, background: theme.palette.bg }}
           >
             <p className="font-display text-lg font-light" style={{ color: theme.palette.accent }}>
-              {theme.couple.bride} &amp; {theme.couple.groom}
+              {theme.couple.coupleOrder === "groom_first"
+                ? `${theme.couple.groom} & ${theme.couple.bride}`
+                : `${theme.couple.bride} & ${theme.couple.groom}`}
             </p>
             <p
               className="mt-2 font-sans text-xs opacity-60"

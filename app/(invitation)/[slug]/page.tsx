@@ -7,6 +7,7 @@ import { demoThemes, type DemoTheme } from "@/features/demo/data";
 import { InvitationDemo } from "@/features/demo/invitation-demo";
 import { constructMetadata } from "@/lib/helpers/metadata";
 import { getTemplateMusic } from "@/config/template-music";
+import { extractCleanMusicTitle } from "@/lib/utils";
 import type { Database } from "@/types/database";
 
 type WeddingRow = Database["public"]["Tables"]["weddings"]["Row"];
@@ -75,7 +76,9 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
         brideParents: w.bride_parents || baseTheme.couple.brideParents,
         groom: w.groom_name || baseTheme.couple.groom,
         groomParents: w.groom_parents || baseTheme.couple.groomParents,
-        story: w.love_story || baseTheme.couple.story,
+        // Do NOT fall back to baseTheme.couple.story — empty = hidden
+        story: w.love_story || "",
+        coupleOrder: (w.couple_order as "bride_first" | "groom_first") || "bride_first",
       },
       event: {
         akad: {
@@ -83,23 +86,29 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
           time: w.akad_time || baseTheme.event.akad.time,
           venue: w.akad_venue || baseTheme.event.akad.venue,
           address: w.akad_address || baseTheme.event.akad.address,
+          mapsUrl: w.akad_maps_url || undefined,
         },
         reception: {
           date: w.reception_date || w.wedding_date || baseTheme.event.reception.date,
           time: w.reception_time || baseTheme.event.reception.time,
           venue: w.venue || baseTheme.event.reception.venue,
           address: w.reception_address || baseTheme.event.reception.address,
+          mapsUrl: w.reception_maps_url || undefined,
         },
-        countdown: w.wedding_date ? `${w.wedding_date}T09:00:00` : baseTheme.event.countdown,
+        // Countdown targets RECEPTION date (the main event, second ceremony)
+        countdown: w.reception_date
+          ? `${w.reception_date}T${w.reception_time ? "12:00:00" : "12:00:00"}`
+          : w.wedding_date
+            ? `${w.wedding_date}T12:00:00`
+            : baseTheme.event.countdown,
       },
-      gifts:
-        Array.isArray(w.gifts) && w.gifts.length > 0
-          ? (w.gifts as DemoTheme["gifts"])
-          : baseTheme.gifts,
+      // Do NOT fall back to baseTheme.gifts — empty = section hidden
+      gifts: Array.isArray(w.gifts) && w.gifts.length > 0 ? (w.gifts as DemoTheme["gifts"]) : [],
+      // Do NOT fall back to baseTheme.timeline — empty = section hidden
       timeline:
         Array.isArray(w.timeline) && w.timeline.length > 0
           ? (w.timeline as DemoTheme["timeline"])
-          : baseTheme.timeline,
+          : [],
     };
   } else {
     // Check if slug matches a demo theme ID
@@ -145,8 +154,8 @@ export default async function RealWeddingInvitationPage({ params, searchParams }
         wedding?.music_type === "custom" && wedding?.music_custom_url
           ? {
               themeId: theme.id,
-              title: "Musik Pilihan",
-              artist: "Custom",
+              title: extractCleanMusicTitle(wedding.music_custom_url),
+              artist: "Musik Pilihan",
               file: wedding.music_custom_url,
             }
           : getTemplateMusic(theme.id)

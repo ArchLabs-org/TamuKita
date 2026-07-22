@@ -66,6 +66,7 @@ export interface Database {
           music_custom_url: string | null;
           gifts: Array<{ bank: string; account: string; name: string }>;
           timeline: Array<{ year: string; title: string; desc: string }>;
+          couple_order: "bride_first" | "groom_first" | null;
         };
         Insert: {
           id?: string;
@@ -99,6 +100,7 @@ export interface Database {
           music_custom_url?: string | null;
           gifts?: Array<{ bank: string; account: string; name: string }>;
           timeline?: Array<{ year: string; title: string; desc: string }>;
+          couple_order?: "bride_first" | "groom_first" | null;
         };
         Update: {
           id?: string;
@@ -132,6 +134,7 @@ export interface Database {
           music_custom_url?: string | null;
           gifts?: Array<{ bank: string; account: string; name: string }>;
           timeline?: Array<{ year: string; title: string; desc: string }>;
+          couple_order?: "bride_first" | "groom_first" | null;
         };
       };
       guests: {

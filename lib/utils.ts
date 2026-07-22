@@ -5,11 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(
-  amount: number,
-  currency = "IDR",
-  locale = "id-ID",
-): string {
+export function formatCurrency(amount: number, currency = "IDR", locale = "id-ID"): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -18,10 +14,7 @@ export function formatCurrency(
   }).format(amount);
 }
 
-export function formatDate(
-  date: string | Date,
-  options?: Intl.DateTimeFormatOptions,
-): string {
+export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
@@ -69,4 +62,27 @@ export function absoluteUrl(path: string): string {
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function extractCleanMusicTitle(fileUrlOrTitle: string): string {
+  if (!fileUrlOrTitle) return "Musik Pilihan";
+  try {
+    let name = fileUrlOrTitle;
+    try {
+      name = decodeURIComponent(name);
+    } catch {
+      // ignore
+    }
+    name = name.split(/[/\\]/).pop() || name;
+    name = name.split("?")[0];
+    // Remove extensions: .mp3, .wav, .m4a, .flac, .ogg, .aac
+    name = name.replace(/\.(mp3|wav|m4a|flac|ogg|aac)$/i, "");
+    // Remove timestamp prefix (e.g. 17283918239_ or 17283918239-)
+    name = name.replace(/^\d{10,13}[_-]/, "");
+    // Replace underscores with spaces
+    name = name.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    return name || "Musik Pilihan";
+  } catch {
+    return fileUrlOrTitle.replace(/\.(mp3|wav|m4a|flac|ogg|aac)$/i, "");
+  }
 }

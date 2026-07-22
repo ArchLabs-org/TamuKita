@@ -157,12 +157,34 @@ export function RsvpFormSimple({
             value={status}
             onChange={(e) => setStatus(e.target.value as any)}
             disabled={submitting || loading || !!error}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2"
-            style={{ "--tw-ring-color": theme.palette.accent } as React.CSSProperties}
+            className="w-full rounded-lg border px-3 py-2 text-xs outline-none focus:ring-2"
+            style={
+              {
+                borderColor: theme.palette.border,
+                background: theme.palette.bg,
+                color: theme.palette.text,
+                "--tw-ring-color": theme.palette.accent,
+              } as React.CSSProperties
+            }
           >
-            <option value="attending">✓ Akan Hadir</option>
-            <option value="maybe">? Mungkin Hadir</option>
-            <option value="not_attending">✗ Tidak Bisa Hadir</option>
+            <option
+              value="attending"
+              style={{ background: theme.palette.bg, color: theme.palette.text }}
+            >
+              ✓ Akan Hadir
+            </option>
+            <option
+              value="maybe"
+              style={{ background: theme.palette.bg, color: theme.palette.text }}
+            >
+              ? Mungkin Hadir
+            </option>
+            <option
+              value="not_attending"
+              style={{ background: theme.palette.bg, color: theme.palette.text }}
+            >
+              ✗ Tidak Bisa Hadir
+            </option>
           </select>
         </div>
 
@@ -177,8 +199,15 @@ export function RsvpFormSimple({
             onChange={(e) => setMessage(e.target.value)}
             disabled={submitting || loading || !!error}
             rows={4}
-            className="w-full rounded-lg border border-input bg-background p-2 text-xs outline-none focus:ring-2"
-            style={{ "--tw-ring-color": theme.palette.accent } as React.CSSProperties}
+            className="w-full rounded-lg border p-2 text-xs outline-none focus:ring-2"
+            style={
+              {
+                borderColor: theme.palette.border,
+                background: theme.palette.bg,
+                color: theme.palette.text,
+                "--tw-ring-color": theme.palette.accent,
+              } as React.CSSProperties
+            }
           />
         </div>
 

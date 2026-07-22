@@ -96,6 +96,10 @@ export default async function WeddingsPage() {
                 </Button>
 
                 <Button variant="brand" size="sm" className="flex-1 rounded-full text-xs" asChild>
+                  <Link href={`${ROUTES.weddings}/${w.id}/edit`}>Edit</Link>
+                </Button>
+
+                <Button variant="ghost" size="sm" className="flex-1 rounded-full text-xs" asChild>
                   <Link href={ROUTES.guests}>Tamu</Link>
                 </Button>
               </div>

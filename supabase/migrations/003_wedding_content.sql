@@ -30,7 +30,9 @@ alter table public.weddings
   -- Gift / Angpao
   add column if not exists gifts               jsonb default '[]',
   -- Timeline stories
-  add column if not exists timeline            jsonb default '[]';
+  add column if not exists timeline            jsonb default '[]',
+  -- Couple display order: 'bride_first' | 'groom_first'
+  add column if not exists couple_order        text default 'bride_first';
 
 comment on column public.weddings.gallery_urls      is 'Array of uploaded photo URLs from Supabase Storage';
 comment on column public.weddings.music_type        is '"template" uses per-theme default, "custom" uses music_custom_url';

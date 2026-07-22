@@ -59,6 +59,7 @@ export default function CreateWeddingWizardPage() {
     brideParents: "",
     groomName: "",
     groomParents: "",
+    coupleOrder: "bride_first" as "bride_first" | "groom_first",
     themeId: "aurora",
     weddingDate: "",
     akadDate: "",
@@ -200,6 +201,7 @@ export default function CreateWeddingWizardPage() {
       brideParents: formData.brideParents,
       groomName: formData.groomName,
       groomParents: formData.groomParents,
+      coupleOrder: formData.coupleOrder,
       themeId: formData.themeId,
       weddingDate:
         formData.weddingDate || formData.akadDate || new Date().toISOString().slice(0, 10),
@@ -380,6 +382,52 @@ export default function CreateWeddingWizardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Urutan Nama Penulisan Mempelai */}
+            <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-5">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">
+                  Urutan Penulisan Nama Mempelai
+                </Label>
+                <p className="mt-0.5 font-sans text-xs text-muted-foreground">
+                  Pilih urutan penulisan nama yang akan ditampilkan pada judul dan sampul undangan.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => set("coupleOrder", "bride_first")}
+                  className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
+                    formData.coupleOrder === "bride_first"
+                      ? "border-brand-600 bg-brand-50/40 font-semibold text-brand-700 ring-2 ring-brand-500"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <span className="text-xs">Wanita &amp; Pria</span>
+                  <span className="mt-0.5 font-mono text-[10px] opacity-75">
+                    {formData.brideName ? formData.brideName.split(" ")[0] : "Wanita"} &amp;{" "}
+                    {formData.groomName ? formData.groomName.split(" ")[0] : "Pria"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => set("coupleOrder", "groom_first")}
+                  className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
+                    formData.coupleOrder === "groom_first"
+                      ? "border-brand-600 bg-brand-50/40 font-semibold text-brand-700 ring-2 ring-brand-500"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <span className="text-xs">Pria &amp; Wanita</span>
+                  <span className="mt-0.5 font-mono text-[10px] opacity-75">
+                    {formData.groomName ? formData.groomName.split(" ")[0] : "Pria"} &amp;{" "}
+                    {formData.brideName ? formData.brideName.split(" ")[0] : "Wanita"}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -474,13 +522,34 @@ export default function CreateWeddingWizardPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="akadVenue">Tempat / Masjid</Label>
+                  <Label htmlFor="akadVenue">Nama Tempat / Masjid</Label>
                   <Input
                     id="akadVenue"
                     placeholder="misal: Masjid Agung Sunda Kelapa"
                     value={formData.akadVenue}
                     onChange={(e) => set("akadVenue", e.target.value)}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="akadAddress">Alamat Lengkap Akad</Label>
+                  <Input
+                    id="akadAddress"
+                    placeholder="misal: Jl. Taman Sunda Kelapa No.16, Menteng, Jakarta Pusat"
+                    value={formData.akadAddress}
+                    onChange={(e) => set("akadAddress", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="akadMapsUrl">Link Google Maps / Pin Point (Optional)</Label>
+                  <Input
+                    id="akadMapsUrl"
+                    placeholder="misal: https://maps.app.goo.gl/... atau link lokasi"
+                    value={formData.akadMapsUrl}
+                    onChange={(e) => set("akadMapsUrl", e.target.value)}
+                  />
+                  <p className="font-sans text-[10px] text-muted-foreground">
+                    Salin link bagikan lokasi dari aplikasi Google Maps agar pin presisi.
+                  </p>
                 </div>
               </div>
 
@@ -507,13 +576,34 @@ export default function CreateWeddingWizardPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="receptionVenue">Gedung / Resort</Label>
+                  <Label htmlFor="receptionVenue">Nama Gedung / Resort</Label>
                   <Input
                     id="receptionVenue"
                     placeholder="misal: Grand Ballroom Hotel Indonesia"
                     value={formData.receptionVenue}
                     onChange={(e) => set("receptionVenue", e.target.value)}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="receptionAddress">Alamat Lengkap Resepsi</Label>
+                  <Input
+                    id="receptionAddress"
+                    placeholder="misal: Jl. M.H. Thamrin No.1, Menteng, Jakarta Pusat"
+                    value={formData.receptionAddress}
+                    onChange={(e) => set("receptionAddress", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="receptionMapsUrl">Link Google Maps / Pin Point (Optional)</Label>
+                  <Input
+                    id="receptionMapsUrl"
+                    placeholder="misal: https://maps.app.goo.gl/... atau link lokasi"
+                    value={formData.receptionMapsUrl}
+                    onChange={(e) => set("receptionMapsUrl", e.target.value)}
+                  />
+                  <p className="font-sans text-[10px] text-muted-foreground">
+                    Salin link bagikan lokasi dari aplikasi Google Maps agar pin presisi.
+                  </p>
                 </div>
               </div>
             </div>
