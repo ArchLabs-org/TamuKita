@@ -26,6 +26,7 @@ import { extractCleanMusicTitle } from "@/lib/utils";
 import { demoThemes, type DemoTheme } from "./data";
 import { RsvpFormSimple } from "@/features/invitation/rsvp-form-simple";
 import { getTemplateMusic, type TemplateMusic } from "@/config/template-music";
+import { HeritageRoyaleTheme } from "@/themes/heritage-royale";
 
 /* ════════════════════════════════════════════════════════════════════════════
    1. TEMPLATE-SPECIFIC AUDIO PLAYER (Strict Unique Audio Source per Theme)
@@ -2040,6 +2041,16 @@ export function InvitationDemo({
   React.useEffect(() => {
     console.log("[InvitationDemo] weddingId:", weddingId, "slug:", slug, "guestName:", guestName);
   }, [weddingId, slug, guestName]);
+
+  // Heritage Royale Signature Theme Renderer
+  if (theme.id === "heritage-royale") {
+    return (
+      <div className="relative min-h-screen">
+        {!weddingId && <DemoTopControlBar theme={theme} />}
+        <HeritageRoyaleTheme weddingId={weddingId} guestName={guestName} />
+      </div>
+    );
+  }
 
   return (
     <div

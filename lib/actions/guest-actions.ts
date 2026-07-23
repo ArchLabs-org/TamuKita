@@ -216,20 +216,28 @@ export async function findGuestByNameAction(weddingId: string, name: string) {
       return { error: "Supabase tidak tersedia." };
     }
 
-    const { data: guest, error } = await supabase
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return { error: "Nama tamu kosong." };
+    }
+
+    // Use .ilike for case-insensitive matching & .limit(1) to avoid multiple rows PostgREST error
+    const { data: guests, error } = await supabase
       .from("guests")
       .select("id")
       .eq("wedding_id", weddingId)
-      .eq("name", name)
-      .maybeSingle();
+      .ilike("name", trimmedName)
+      .limit(1);
 
     if (error) {
       console.error("[findGuestByNameAction] Query failed:", error.message);
       return { error: `Gagal mencari tamu: ${error.message}` };
     }
 
+    const guest = guests && guests.length > 0 ? guests[0] : null;
+
     if (!guest) {
-      return { error: "Tamu tidak ditemukan di daftar" };
+      return { error: "Tamu belum terdaftar di database (akan dibuat otomatis saat simpan RSVP)" };
     }
 
     return { success: true, guestId: guest.id };

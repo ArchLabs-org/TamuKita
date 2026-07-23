@@ -5,7 +5,11 @@ import { Send, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { updateGuestRsvpAction, findGuestByNameAction } from "@/lib/actions/guest-actions";
+import {
+  updateGuestRsvpAction,
+  saveGuestRsvpAction,
+  findGuestByNameAction,
+} from "@/lib/actions/guest-actions";
 import type { DemoTheme } from "@/features/demo/data";
 
 export interface RsvpFormSimpleProps {
@@ -48,12 +52,14 @@ export function RsvpFormSimple({
       setLoading(false);
 
       if ("error" in result && result.error) {
-        console.warn("[RsvpFormSimple] Guest lookup failed:", result.error);
-        setError(result.error);
+        console.log("[RsvpFormSimple] Guest lookup note:", result.error);
+        // Do not block RSVP submission — if not found, submitting will insert a new RSVP guest entry
         return;
       }
 
-      setGuestId(result.guestId);
+      if ("guestId" in result && result.guestId) {
+        setGuestId(result.guestId);
+      }
     };
 
     findGuest();
@@ -80,24 +86,32 @@ export function RsvpFormSimple({
       return;
     }
 
-    if (!guestId) {
-      setError("ID Tamu tidak valid");
-      toast.error("Terjadi kesalahan, silakan coba lagi");
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
 
     // Show loading toast
     const toastId = toast.loading("Menyimpan RSVP...");
 
-    // Update existing guest
-    const result = await updateGuestRsvpAction({
-      guestId,
-      status,
-      notes: message,
-    });
+    let result;
+    if (guestId) {
+      // Update existing guest record
+      result = await updateGuestRsvpAction({
+        guestId,
+        status,
+        notes: message,
+      });
+    } else if (weddingId) {
+      // Insert new RSVP guest record if not pre-populated
+      result = await saveGuestRsvpAction({
+        weddingId,
+        name: guestName,
+        rsvpStatus: status,
+        notes: message,
+      });
+    } else {
+      // Demo preview mode fallback
+      result = { success: true };
+    }
 
     setSubmitting(false);
 

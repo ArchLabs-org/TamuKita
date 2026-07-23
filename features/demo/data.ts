@@ -423,6 +423,74 @@ export const demoThemes: DemoTheme[] = [
       { bank: "BSI", account: "0099887766", name: "Farhan Abdullah" },
     ],
   },
+  {
+    id: "heritage-royale",
+    name: "Heritage Royale",
+    tagline: "L'Éternité d’Or Signature",
+    description:
+      "Haute couture digital wedding experience featuring royal emerald, champagne gold filigree, and Javanese Gunungan craftsmanship.",
+    style: "Imperial Emerald · Champagne Gold · Signature",
+    palette: {
+      bg: "hsl(162,59%,10%)",
+      bgSecondary: "hsl(162,50%,15%)",
+      text: "hsl(40,30%,97%)",
+      textMuted: "hsl(40,65%,72%)",
+      accent: "hsl(40,60%,55%)",
+      accentLight: "hsl(40,65%,72%)",
+      border: "hsl(40,65%,42%)",
+      card: "hsl(162,59%,10%)",
+    },
+    couple: {
+      bride: "Sekar Ayu Pertiwi",
+      brideParents: "Putri dari Bpk. H. Slamet Rahardjo & Ibu Hj. Winarti",
+      groom: "Agam Achmad Sidiq",
+      groomParents: "Putra dari Bpk. Ir. Bambang Achmad & Ibu Dr. Retno Wulandari",
+      story:
+        "Pertemuan kami bermula dari sebuah pameran seni di Jakarta pada penghujung 2021. Berawal dari apresiasi seni yang sama, kisah cinta kami tumbuh secara alami dan mendalam hingga bermuara pada janji suci pernikahan ini.",
+    },
+    event: {
+      akad: {
+        date: "Sabtu, 24 Oktober 2026",
+        time: "08:00 - 10:00 WIB",
+        venue: "Grand Ballroom The Dharmawangsa",
+        address: "Jl. Brawijaya VIII No.26, Kebayoran Baru, Jakarta Selatan",
+      },
+      reception: {
+        date: "Sabtu, 24 Oktober 2026",
+        time: "11:00 - 14:00 WIB",
+        venue: "Royal Garden The Dharmawangsa",
+        address: "Jl. Brawijaya VIII No.26, Kebayoran Baru, Jakarta Selatan",
+      },
+      countdown: "2026-10-24T11:00:00",
+    },
+    gallery: [
+      "from-emerald-900 to-amber-900",
+      "from-amber-900 to-emerald-900",
+      "from-emerald-950 to-amber-800",
+      "from-amber-800 to-emerald-950",
+    ],
+    timeline: [
+      {
+        year: "2021",
+        title: "Pertemuan Pertama",
+        desc: "Pertama kali saling menyapa di Pameran Seni Jakarta.",
+      },
+      {
+        year: "2023",
+        title: "Lamaran",
+        desc: "Momen membahagiakan saat keluarga besar saling bertemu.",
+      },
+      {
+        year: "2026",
+        title: "Pernikahan",
+        desc: "Memulai babak baru kehidupan bersama sebagai suami istri.",
+      },
+    ],
+    gifts: [
+      { bank: "Bank Central Asia (BCA)", account: "8830129481", name: "Sekar Ayu Pertiwi" },
+      { bank: "Bank Mandiri", account: "1370019283741", name: "Agam Achmad Sidiq" },
+    ],
+  },
 ];
 
 export function getThemeById(id: string): DemoTheme | undefined {
